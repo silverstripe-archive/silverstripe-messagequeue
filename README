@@ -1,0 +1,26 @@
+###############################################
+Message Queue Module
+###############################################
+
+Maintainer Contact
+-----------------------------------------------
+Mark Stephens (Nickname: mstephens)
+<mark (at) silverstripe (dot) com>
+
+Requirements
+-----------------------------------------------
+- Stomp.php if Stomp is being used (Note: experimental only)
+- processOnShutdown option requires *nix or OS X (won't work on Windows)
+
+Documentation
+-----------------------------------------------
+See docs/message_queue.md
+
+Installation Instructions
+-----------------------------------------------
+
+Move the 'messagequeue' folder to the root level of the project and do
+a dev/build.
+
+In mysite/_config.php, put any code for setting the interface configuration
+of the module.
