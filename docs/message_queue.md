@@ -148,7 +148,8 @@ The default configuration is:
 `
 
 The effective behaviour is that messages sent to any queue will be processed on
-PHP shutdown.
+PHP shutdown. (Note: if this option is set, messages sent from another PHP
+shutdown function will not be consumed).
 
 Example 1:
 `
@@ -300,6 +301,31 @@ forms:
 Initiating Message Queue Processing
 ===================================
 
+On PHP Shutdown
+---------------
+To initiate queue consumption on the PHP shutdown of the process that initiated
+the send, you need to set that option (as above) on the interface
+configuration.
+
+By default, this calls the MessageQueue_Consume controller in a sub-process,
+using 'sake'. This process can continue to execute after the main request
+process has finished.
+
+In some environments (particularly where there are multiple PHP binaries
+that are not compiled the same - MacOS X built-in vs MAMP is a classic
+example), 'sake' make not work. If this is the case, you can call the
+following in mysite/_config.php:
+
+`MessageQueue::set_onshutdown_option("phppath", $pathToPhp);`
+
+If this is set, the provided php binary is used instead of sake in the
+sub-process.
+
+Note: this may vary between development, testing and production environments.
+
+
+Externally Using Sake
+---------------------
 Messages in a queue can be recieved and processed using the command:
 
 `
@@ -314,6 +340,13 @@ You can limit the number of entries processed:
 `
 
 You can schedule queue consumption using cron.
+
+Externally Using wget
+---------------------
+
+In environments where there is no external php binary (e.g. only mod_php), you
+may need to use wget to initiate the call to the MessageQueue_Consume
+controller.
 
 To Do
 =====
