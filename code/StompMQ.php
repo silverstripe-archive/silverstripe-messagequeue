@@ -15,9 +15,13 @@
  * @author Mark Stephens <mark@silverstripe.com>
  */
 
-class StompMQ {
+class StompMQ implements MessageQueueImplementation {
 
 	static $conn = null;
+
+	// Constructor needed for singleton()
+	function __construct() {
+	}
 
 	/**
 	 * Set up for interacting with Stomp, icnluding creating the connection. Configuration
@@ -28,10 +32,11 @@ class StompMQ {
 	protected function init($config) {
 		if (self::$conn) return;
 
-		require_once("Stomp.php");
+		require_once(Director::getAbsFile("messagequeue/thirdparty/stomp-php-1.0.0/Stomp.php"));
 
 		$conf = $config["stomp"];
 		self::$conn = new Stomp($conf["server"]);
+
 		if (isset($conf["durableClientId"])) self::$conn->clientId = $conf["durableClientId"];
 
 		// @TODO: handle authentication and any other connection properties
@@ -39,9 +44,8 @@ class StompMQ {
 	}
 
 	function send($queue, $msgframe, $interfaceConfig) {
-		$this->init();
-
-		self::$conn->send($queue, $msgframe->body, $msgframe->header);
+		$this->init($interfaceConfig);
+		$result = self::$conn->send("/queue/" . $queue, $msgframe->body, $msgframe->header);
 	}
 
 	/**
@@ -55,15 +59,16 @@ class StompMQ {
 	 * @return DataObjectSet
 	 */
 	function receive($queue, $interfaceConfig, $options) {
-		$this->init();
+		$this->init($interfaceConfig);
 
-		self::$conn->subscribe($queue);
+		self::$conn->subscribe("/queue/" . $queue);
 
 		$result = new DataObjectSet();
 		$count = 0;
 		$limit = ($options && isset($options["limit"])) ? $options["limit"] : 0;
 		while ((!$limit || $count < $limit) && ($frame = self::$conn->readFrame())) {
 			$result->push(new MessageFrame($frame->body, $frame->headers, $queue));
+			self::$conn->ack($frame);
 			$count++;
 		}
 
