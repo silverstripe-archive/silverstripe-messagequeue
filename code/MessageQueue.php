@@ -18,12 +18,12 @@ class MessageQueue {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => false
+				"processOnShutdown" => true
 			),
 			"delivery" => array(
 				"onerror" => array(
-						"log",
-						"requeue"
+					"log",
+					"requeue"
 				)
 			)
 		)
@@ -53,6 +53,31 @@ class MessageQueue {
 	 */
 	static function remove_interface($name) {
 		unset(self::$interfaces[$name]);
+	}
+
+	protected static $onshutdown_option = "default";
+
+	protected static $onshutdown_arg = "";
+
+	/**
+	 * This sets the mode in which processOnShutdown is handled, and may need
+	 * to be called if the shutdown processing dosn't work.
+	 * There are 2 options:
+	 *  - "sake" (default)	Sub-processes are run using exec, with sapphire/sake
+	 *						being called to run the process. This requires
+	 *						that php is on the path, and is the same php
+	 *						interpreter as apache is using. (e.g. on MacOS X
+	 *						the supplied php may be compiled differently that
+	 *						under MAMP.)
+	 * - "phppath"			Sub-processes are run using an explicitly identified
+	 *						PHP binary, supplied as the arg.
+	 * @param String $option		The option to use
+	 * @param String $arg			The optional argument to that option.
+	 */
+	static function set_onshutdown_option($option, $arg = null) {
+		self::$onshutdown_option = $option;
+		self::$onshutdown_arg = $arg;
+		if ($option == "phppath" && !$arg) throw new MessageQueueException("set_onshutdown_option: Path is required for phppath option");
 	}
 
 	/**
@@ -95,9 +120,21 @@ class MessageQueue {
 	 * it starts a new sub-process for queue.
 	 */
 	static function consume_on_shutdown() {
-		$exec = Director::getAbsFile("sapphire/sake");
-		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy)
-			`$exec MessageQueue_Consume queue=$queue > /dev/null 2>/dev/null &`;
+		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy) {
+			switch (self::$onshutdown_option) {
+				case "sake":
+					$exec = Director::getAbsFile("sapphire/sake");
+					`$exec MessageQueue_Consume queue=$queue >/dev/null 2>/dev/null &`;
+					break;
+				case "phppath":
+					$php = self::$onshutdown_arg;
+					$sapphire = Director::getAbsFile("sapphire");
+					`$php $sapphire/cli-script.php MessageQueue_Consume queue=$queue >/dev/null 2>/dev/null &`;
+					break;
+				default:
+					throw new MessageQueueException("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_shutdown);
+			}
+		}
 	}
 
 	/**
