@@ -120,6 +120,7 @@ class MessageQueue {
 	 * it starts a new sub-process for queue.
 	 */
 	static function consume_on_shutdown() {
+		if (!self::$queues_to_flush_on_shutdown) return;
 		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy) {
 			switch (self::$onshutdown_option) {
 				case "sake":
