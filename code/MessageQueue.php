@@ -86,7 +86,7 @@ class MessageQueue {
 	 * @param Any $message The message to send.
 	 * @param Map $header A map of header items.
 	 */
-	static function send($queue, $message, $header = null) {
+	static function send($queue, $message, $header = array()) {
 		$conf = self::get_queue_config($queue);
 		$inst = singleton($conf["implementation"]);
 		if (is_object($message) && $message instanceof MessageFrame) {

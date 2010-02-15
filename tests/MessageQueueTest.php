@@ -42,7 +42,7 @@ class MessageQueueTest extends SapphireTest {
 	}
 
 	/**
-	 * Test a message send using the default configuration (uses SimpleDBMQ, clears queue on
+//	 * Test a message send using the default configuration (uses SimpleDBMQ, clears queue on
 	 * PHP shutdown.
 	 */
 	function testMessageSendDefaultConfig() {
@@ -220,6 +220,81 @@ class MessageQueueTest extends SapphireTest {
 	private static $message_frame = null;
 	static function messageCallback($msgframe, $conf) {
 		self::$message_frame = $msgframe;
+	}
+
+	/**
+	 * Send a message that is already a frame. Ensure what we get back
+	 * is what we sent in the frame.
+	 */
+	function testFrameSend() {
+		MessageQueue::add_interface("default", array(
+			"queues" => array("testmainqueue"),
+			"implementation" => "SimpleDBMQ",
+			"encoding" => "raw", // no encoding
+			"send" => array(
+				"processOnShutdown" => false
+			),
+			"delivery" => array(
+				"callback" => array("MessageQueueTest", "messageCallback"),
+				"onerror" => array(
+					"requeue"
+				)
+			)
+		));
+
+		$testData = "Nigel mouse";
+		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 0, "Main queue is empty before we put anything in it");
+		$frame = new MessageFrame($testData);
+		MessageQueue::send("testmainqueue", $frame);
+		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 1, "Main queue has an item after we add to it");
+
+		// Get messages, and make sure we get it back.
+		$msgs = MessageQueue::get_messages("testmainqueue");
+		$this->assertTrue($msgs != null, "Got a set");
+		$this->assertTrue($msgs->Count() == 1, "Got one message");
+		$msg = $msgs->First();
+		$this->assertTrue($msg instanceof MessageFrame, "Message is a frame");
+		$this->assertTrue($msg->body == $testData);
+	}
+
+	/**
+	 * Test consume_all_queues using SimpleDB. We use a counter static method
+	 * and count the number of times its called, for messages on multiple
+	 * calls.
+	 */
+	function testMultipleConsume() {
+		MessageQueue::add_interface("default", array(
+			"queues" => array("testmainqueue1", "testmainqueue2", "testmainqueue3"),
+			"implementation" => "SimpleDBMQ",
+			"encoding" => "php_serialize",
+			"send" => array(
+				"processOnShutdown" => false
+			),
+			"delivery" => array(
+				"onerror" => array(
+					"requeue"
+				)
+			)
+		));
+
+		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue1") == 0, "Queue 1 is empty before we put anything in it");
+		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue2") == 0, "Queue 2 is empty before we put anything in it");
+		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue3") == 0, "Queue 3 is empty before we put anything in it");
+		self::$countedCalls = 0;
+
+		MessageQueue::send("testmainqueue1", new MethodInvocationMessage("MessageQueueTest", "doCountCalls"));
+		MessageQueue::send("testmainqueue2", new MethodInvocationMessage("MessageQueueTest", "doCountCalls"));
+		MessageQueue::send("testmainqueue3", new MethodInvocationMessage("MessageQueueTest", "doCountCalls"));
+
+		$this->assertTrue(MessageQueue::consume_all_queues("default") == 3, "Consumed messages off 3 queues");
+		$this->assertTrue(self::$countedCalls == 3, "3 messages were delivered");
+
+	}
+
+	static $countedCalls = 0;
+
+	static function doCountCalls() {
+		self::$countedCalls++;
 	}
 }
 
