@@ -55,6 +55,25 @@ class MessageQueue {
 		unset(self::$interfaces[$name]);
 	}
 
+	/**
+	 * Location of debugging files, null if not debugging.
+	 * @var String
+	 */
+	protected static $debugging_path = null;
+
+	/**
+	 * Supports debugging, specifically for php shutdown debugging which is
+	 * otherwise impossible. If not set, stderr and stdout on php shutdown
+	 * processes are redirected to /dev/null. If the path is set,
+	 * stdout is redirector to $path/msgq.stdout and $path/msgq.stderr.
+	 * @param String $path	A path to a writable location where two files are
+	 *						created, msgq.stdout and msgq.stderr
+	 */
+	static function set_debugging($path) {
+		if (substr($path, -1) == "/") $path = substr($path, 0, -1);
+		self::$debugging_path = $path;
+	}
+
 	protected static $onshutdown_option = "default";
 
 	protected static $onshutdown_arg = "";
@@ -121,16 +140,45 @@ class MessageQueue {
 	 */
 	static function consume_on_shutdown() {
 		if (!self::$queues_to_flush_on_shutdown) return;
+
+		if (self::$debugging_path) {
+			$stdout = ">> " . self::$debugging_path . "/msgq.stdout";
+			$stderr = "2>>" . self::$debugging_path . "/msgq.stderr";
+		}
+		else {
+			$stdout = "> /dev/null";
+			$stderr = "2> /dev/null";
+		}
+
+		// If we're debugging, dump the simpleDBMQ messages to the output.
+		// This is the typical case, obviously not applicable if not using
+		// simpledbmq, but the interface can't provide a guaranteed method to
+		// get the messages without consuming them.
+		if (self::$debugging_path) {
+			$msgs = DataObject::get("SimpleDBMQ");
+			if ($msgs) {
+				`echo "messages currently in queue:\n" $stdout`;
+				foreach ($msgs as $msg) `echo " queue={$msg->QueueName} msg={$msg->Message}\n" $stdout`;
+			}
+		}
+		else
+			`echo "no messages currently in queue\n" $stdout`;
+
 		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy) {
 			switch (self::$onshutdown_option) {
 				case "sake":
 					$exec = Director::getAbsFile("sapphire/sake");
-					`$exec MessageQueue_Consume queue=$queue >/dev/null 2>/dev/null &`;
+					`$exec MessageQueue_Consume queue=$queue $stdout $stderr &`;
 					break;
 				case "phppath":
 					$php = self::$onshutdown_arg;
 					$sapphire = Director::getAbsFile("sapphire");
-					`$php $sapphire/cli-script.php MessageQueue_Consume queue=$queue >/dev/null 2>/dev/null &`;
+					$cmd = "$php $sapphire/cli-script.php MessageQueue_Consume queue=$queue $stdout $stderr &";
+					`$cmd`;
+					if (self::$debugging_path) {
+						`echo "queue is $queue\n" $stdout`;
+						`echo "command was $cmd\n" $stdout`;
+					}
 					break;
 				default:
 					throw new MessageQueueException("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_shutdown);
