@@ -362,3 +362,23 @@ To Do
   max number of re-tries. Need to either: use headers to hold info (but cannot
   be guaranteed across different implementers); or push it to the implementer
   layer to handle.
+
+Known Issues
+============
+
+Message Consumption on PHP Shutdown Issues on MacOS X w/MAMP
+------------------------------------------------------------
+
+If the message queue appears to clearing on shutdown, but the messages are
+not being delivered (callback not being executed for example), enable
+debugging. If you see this message:
+
+`
+	Symbol not found: __cg_jpeg_resync_to_restart
+`
+You need to ensure that /Applications/MAMP/Library/bin/envvars contains:
+
+`
+	DYLD_LIBRARY_PATH="/Applications/MAMP/Library/lib:$DYLD_LIBRARY_PATH"
+	export DYLD_FALLBACK_LIBRARY_PATH=/Applications/MAMP/Library/lib
+`
