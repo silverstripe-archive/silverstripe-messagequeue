@@ -63,10 +63,10 @@ class MethodInvocationMessage implements MessageExecutable {
 			case "dataobject":
 				$obj = DataObject::get_by_id($this->objectOrClass, $this->id);
 				if (!$obj) throw new Exception("Can not execute non-existent Data object {$this->objectOrClass}->{$this->id}");
-				$res = @call_user_func_array(array($obj, $item->method), $this->args);
+				$res = @call_user_func_array(array($obj, $this->method), $this->args);
 				break;
 			case "object":
-				$res = @call_user_func_array(array($this->objOrClass, $this->method), $this->args);
+				$res = @call_user_func_array(array($this->objectOrClass, $this->method), $this->args);
 				break;
 			default:
 				throw new Exception("Invalid method invocation type '{$this->invokeType}'");
