@@ -1,6 +1,6 @@
 <?php
 
-class MessageQueueSampleDO extends DataObject /*implements TestOnly*/ {
+class MessageQueueSampleDO extends DataObject implements TestOnly {
 	static $db = array(
 		"prop1" => "Varchar",
 		"prop2" => "Int",
