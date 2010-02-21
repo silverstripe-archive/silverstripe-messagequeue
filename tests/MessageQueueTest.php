@@ -22,9 +22,10 @@ class MessageQueueTest extends SapphireTest {
 	 */
 
 	/**
-	 * Test MethodInvocationMessage class, independent from queueing.
+	 * Test MethodInvocationMessage class, independent from queueing. Test using
+	 * static method.
 	 */
-	function testMethodInvocation() {
+	function testMethodInvocationStatic() {
 		// test the initial values
 		$inv = new MethodInvocationMessage("MessageQueueTest", "doStaticMethod", "p1", 2);
 		$frame = new MessageFrame();
@@ -33,6 +34,40 @@ class MessageQueueTest extends SapphireTest {
 		$inv->execute($frame, $conf);
 		$this->assertTrue(self::$testP1 == "p1", "Static method test executed, P1 test");
 		$this->assertTrue(self::$testP2 == 2, "Static method test executed, P2 test");
+	}
+
+	/**
+	 * Test MethodInvocationMessage class, independent from queueing. Test using
+	 * object method.
+	 */
+	function testMethodInvocationObject() {
+		$inv = new MethodInvocationMessage(new MessageQueueSample("p1"), "doNonDOMethod", "_suffix");
+		$frame = new MessageFrame();
+		$frame->body = $inv;
+		$conf = array();
+		$inv->execute($frame, $conf);
+		$this->assertTrue(MessageQueueSample::$testP1 == "p1_suffix", "Non-DO method invocation correctly set its static output");
+	}
+
+	/**
+	 * Test MethodInvocationMessage class, independent from queueing. Test using
+	 * data object method.
+	 */
+	function testMethodInvocationDataObject() {
+		$obj = new MessageQueueSampleDO();
+		$obj->prop1 = "p1";
+		$obj->prop2 = 2;
+		$obj->write();
+		$id = $obj->ID;
+
+		$inv = new MethodInvocationMessage($obj, "doDataObjectMethod", "_suffix");
+		$frame = new MessageFrame();
+		$frame->body = $inv;
+		$conf = array();
+		$inv->execute($frame, $conf);
+
+		$obj2 = DataObject::get_by_id("MessageQueueSampleDO", $id);
+		$this->assertTrue($obj2->result == "p12_suffix", "DO method invocation correctly set its static output");
 	}
 
 	private function getQueueSizeSimpleDB($queue) {
@@ -298,34 +333,3 @@ class MessageQueueTest extends SapphireTest {
 	}
 }
 
-/**
- * Test class for object method test. We will create an instance with variables.
- * The method when executed will set testP1 which is derived from the initial value
- * of the first parameter. This will test the object got serialised, and the static
- * gives us a way independent of the instance to see the event was called.
- */
-/*class QueueTestSample extends Object {
-	var $prop1 = null;
-	static $testP1 = null;
-
-	function __construct($p1 = null) {
-		$this->prop1 = $p1;
-	}
-
-	function doNonDOMethod($p1 = null) {
-		self::$testP1 = $this->prop1 . $p1;
-	}
-}
-
-class QueueTestSampleDO extends DataObject {
-	static $db = array(
-		"prop1" => "Varchar",
-		"prop2" => "Int",
-		"result" => "Varchar"
-	);
-
-	function doDataObjectMethod($p1 = null) {
-		$this->result = $this->prop1 . $this->prop2 . $p1;
-		$this->write();
-	}
-}*/
