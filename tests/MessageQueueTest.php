@@ -2,7 +2,10 @@
 
 class MessageQueueTest extends SapphireTest {
 	static $fixture_file = 'messagequeue/tests/MessageQueueTest.yml';
-
+	protected $extraDataObjects = array(
+		'MessageQueueSampleDO'
+	);
+	
 	/**
 	 * @TODO
 	 * *** Test rule matching:
