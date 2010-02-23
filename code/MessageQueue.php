@@ -181,7 +181,7 @@ class MessageQueue {
 					}
 					break;
 				default:
-					throw new MessageQueueException("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_shutdown);
+					throw new MessageQueueException("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_on_shutdown);
 			}
 		}
 	}
