@@ -74,7 +74,7 @@ class MessageQueue {
 		self::$debugging_path = $path;
 	}
 
-	protected static $onshutdown_option = "default";
+	protected static $onshutdown_option = "sake";
 
 	protected static $onshutdown_arg = "";
 
