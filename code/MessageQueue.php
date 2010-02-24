@@ -96,7 +96,7 @@ class MessageQueue {
 	static function set_onshutdown_option($option, $arg = null) {
 		self::$onshutdown_option = $option;
 		self::$onshutdown_arg = $arg;
-		if ($option == "phppath" && !$arg) throw new MessageQueueException("set_onshutdown_option: Path is required for phppath option");
+		if ($option == "phppath" && !$arg) throw new Exception("set_onshutdown_option: Path is required for phppath option");
 	}
 
 	/**
@@ -181,7 +181,7 @@ class MessageQueue {
 					}
 					break;
 				default:
-					throw new MessageQueueException("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_on_shutdown);
+					throw new Exception("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_on_shutdown);
 			}
 		}
 	}
@@ -223,8 +223,8 @@ class MessageQueue {
 		$interface = self::get_queue_interface($queue);
 		$conf = self::$interfaces[$interface];
 
-		if (!$conf) throw new MessageQueueException("Error sending message to queue '$queue': no matching configured queue");
-		if (!isset($conf["implementation"])) throw new MessageQueueException("Error sending message to queue '$queue': configuration doesnt provide a message queue implementation class");
+		if (!$conf) throw new Exception("Error sending message to queue '$queue': no matching configured queue");
+		if (!isset($conf["implementation"])) throw new Exception("Error sending message to queue '$queue': configuration doesnt provide a message queue implementation class");
 		return $conf;
 	}
 
@@ -287,7 +287,7 @@ class MessageQueue {
 			case "raw":
 				break;
 			default:
-				throw new MessageQueueException("Unknown message encoding '{$config["encoding"]}'");
+				throw new Exception("Unknown message encoding '{$config["encoding"]}'");
 		}
 	}
 
@@ -303,7 +303,7 @@ class MessageQueue {
 			case "raw":
 				break;
 			default:
-				throw new MessageQueueException("Unknown message encoding '{$config["encoding"]}'");
+				throw new Exception("Unknown message encoding '{$config["encoding"]}'");
 		}
 	}
 
@@ -313,7 +313,7 @@ class MessageQueue {
 	 * @param Map $options
 	 */
 	static function consume_all_queues($interfaceName, $options = null) {
-		if (!isset(self::$interfaces[$interfaceName])) throw new MessageQueueException("consume_all_queues: unknown interface '$interfaceName'");
+		if (!isset(self::$interfaces[$interfaceName])) throw new Exception("consume_all_queues: unknown interface '$interfaceName'");
 		$conf = self::$interfaces[$interfaceName];
 		$inst = singleton($conf["implementation"]);
 
@@ -336,7 +336,7 @@ class MessageQueue {
 	 *       represent this generally.
 	 */
 	static function deliver_message($msgframe, $conf) {
-		if (!$conf || !isset($conf["delivery"])) throw new MessageQueueException("deliver_message failed because it was not passed valid configuration with delivery section");
+		if (!$conf || !isset($conf["delivery"])) throw new Exception("deliver_message failed because it was not passed valid configuration with delivery section");
 		$del = $conf["delivery"];
 
 		try {
@@ -345,7 +345,7 @@ class MessageQueue {
 				call_user_func_array($del["callback"], array($msgframe, $conf));
 			}
 			else if (is_object($msgframe->body) && $msgframe->body instanceof MessageExecutable) $msgframe->body->execute($msgframe, $conf);
-			else throw new MessageQueueException("delivery of message failed because there is no specification of what to do with it");
+			else throw new Exception("delivery of message failed because there is no specification of what to do with it");
 		}
 		catch (Exception $e) {
 			// Look at the config to determine what to do with a failed message.
@@ -377,7 +377,7 @@ class MessageQueue {
 						echo $e->getMessage();
 						break;
 					default:
-						throw new MessageQueueException("Invalid onerror action '$action'");
+						throw new Exception("Invalid onerror action '$action'");
 				}
 			}
 		}
@@ -385,17 +385,20 @@ class MessageQueue {
 }
 
 /**
- * Interface to classes that provide an implementation for sending and receiving messages.
+ * Interface to classes that provide an implementation for sending and receiving
+ * messages.
  */
 interface MessageQueueImplementation {
 	/**
 	 * Send a message on a queue.
 	 * @param String $queue		Queue name, as interpreted by the the MQ implementor.
-	 * @param <type> $msgframe	The message frame containing body and header. The header is subject to interpretation
-	 *							by the queue implementor. The message body should already be in an encoded form
-	 *							acceptable to the MQ implementation. For Stomp, this is a string, so generally
-	 *							the message should be encoded in some string-based format. Specific implementor classes
-	 *							may not require this, however.
+	 * @param <type> $msgframe	The message frame containing body and header. The header
+	 *							is subject to interpretation by the queue implementor.
+	 *							The message body should already be in an encoded
+	 *							form acceptable to the MQ implementation. For
+	 *							Stomp, this is a string, so generally the message
+	 *							should be encoded in some string-based format.
+	 *							Specific implementor classes may not require this, however.
 	 * @param <type> $interfaceConfig	The interface configuration for the queue.
 	 */
 	function send($queue, $msgframe, $interfaceConfig);
@@ -403,8 +406,9 @@ interface MessageQueueImplementation {
 	/**
 	 * Receive one or more messages from a queue.
 	 * Notes:
-	 *   - the implementor class is responsible for ensuring that message retrieval is atomic, and specifically that
-	 *     if the MessageQueue::consume() is called simultaneously by multiple processes, each message is only
+	 *   - the implementor class is responsible for ensuring that message retrieval
+	 *	   is atomic, and specifically that if the MessageQueue::consume() is
+	 *	   called simultaneously by multiple processes, each message is only
 	 *     processed once.
 	 * @param String $queue
 	 * @param Map $interfaceConfig	The interface configuration for the queue.
@@ -451,13 +455,10 @@ class MessageFrame extends ViewableData {
 	function __construct($body = null, $header = null, $queue = null) {
 		parent::__construct();
 		$this->body = $body;
-		if ($header && !is_array($header)) throw new MessageQueueException("Message frame expects header to be an array");
+		if ($header && !is_array($header)) throw new Exception("Message frame expects header to be an array");
 		$this->header = $header;
 		$this->queue = $queue;
 	}
-}
-
-class MessageQueueException extends Exception {
 }
 
 /**
