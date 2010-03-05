@@ -33,13 +33,32 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 		$result = new DataObjectSet();
 		$limit = ($options && isset($options["limit"])) ? $options["limit"] : null;
 
-		$msgs = DataObject::get("SimpleDBMQ", $queue ? ("QueueName='$queue'") : "", null, null, $limit ? array("limit" => $limit, "start" => 0) : null);
-		if (!$msgs) return $result;
+		$conn = DB::getConn();
 
-		foreach ($msgs as $do) {
-			$result->push(new MessageFrame($do->Message, unserialize($do->Header), $do->QueueName));
-			$do->delete();
-			$do->flushCache();
+		// OK, start a transaction, or if we are in MySQL, create a lock on the SimpleDBMQ table.
+		if ($conn instanceof MySQLDatabase) $res = $conn->query('lock table SimpleDBMQ write');
+		else if ($conn->method_exists('startTransaction')) $conn->startTransaction();
+
+		try {
+			$msgs = DataObject::get("SimpleDBMQ", $queue ? ("QueueName='$queue'") : "", null, null, $limit ? array("limit" => $limit, "start" => 0) : null);
+			if (!$msgs) return $result;
+
+			foreach ($msgs as $do) {
+				$result->push(new MessageFrame($do->Message, unserialize($do->Header), $do->QueueName));
+				$do->delete();
+				$do->flushCache();
+			}
+
+			// Commit transaction, or in MySQL just release the lock
+			if ($conn instanceof MySQLDatabase) $res = $conn->query('unlock tables');
+			else if ($conn->method_exists('endTransaction')) $conn->endTransaction();
+		}
+		catch (Exception $e) {
+			// Rollback, or in MySQL just release the lock
+			if ($conn instanceof MySQLDatabase) $res = $conn->query('unlock tables');
+			else if ($conn->method_exists('transactionRollback')) $conn->transactionRollback();
+
+			throw $e;
 		}
 
 		return $result;
