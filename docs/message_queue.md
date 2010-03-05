@@ -1,7 +1,7 @@
 Introduction
 ============
 
-The MessageQueue class provides a simple, lightweight message queueing mechanism
+The MessageQueue module provides a simple, lightweight message queueing mechanism
 for SilverStripe applications. It can handle simple uses such as queueing
 actions for long running process execution, as well as bi-directional
 interaction with external messaging systems such as ApacheMQ.
@@ -90,6 +90,13 @@ There are 3 message delivery options:
   messages are only delivered in response to the application requesting them
   (this option is for where the application's normal page request execution is
   to process the messages synchronously with the user interaction.)
+
+
+Notes:
+
+* Queue implementation classes guarantee that any set of messages retrieved are done atomically, so that
+  multiple processes can process a queue but guaranteeing that each message delivery attempt is done once. A
+  message is only successfully delivered once.
 
 Exception Handling
 ------------------
@@ -351,7 +358,8 @@ controller.
 To Do
 =====
 
-* Complete StompMQ and test it.
+* Complete StompMQ and test it. Specific functions not supported at this stage
+  includes authentication.
 * More test cases
 * Option on queue consumption to process messages atomically. That is, do one
   message at a time, so that if there is a failure, we haven't lost a whole
@@ -382,3 +390,11 @@ You need to ensure that /Applications/MAMP/Library/bin/envvars contains:
 	DYLD_LIBRARY_PATH="/Applications/MAMP/Library/lib:$DYLD_LIBRARY_PATH"
 	export DYLD_FALLBACK_LIBRARY_PATH=/Applications/MAMP/Library/lib
 `
+
+Diagnosing Message Queue Processing on PHP Shutdown
+---------------------------------------------------
+
+By default when a process is initiated to clear a queue on PHP shutdown, the
+process redirects output to /dev/null. To assist in debugging these processes,
+call MessageQueue::set_debugging can be called to set a directory to write log files
+to, and both stdout and stderr are redirected to real files in that directory.
