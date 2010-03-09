@@ -3,7 +3,7 @@
 class MessageQueueTest extends SapphireTest {
 	static $fixture_file = 'messagequeue/tests/MessageQueueTest.yml';
 	protected $extraDataObjects = array(
-		'MessageQueueSampleDO'
+		'MessageQueueTest_DataObject'
 	);
 	
 	/**
@@ -44,12 +44,12 @@ class MessageQueueTest extends SapphireTest {
 	 * object method.
 	 */
 	function testMethodInvocationObject() {
-		$inv = new MethodInvocationMessage(new MessageQueueSample("p1"), "doNonDOMethod", "_suffix");
+		$inv = new MethodInvocationMessage(new MessageQueue_Object("p1"), "doNonDOMethod", "_suffix");
 		$frame = new MessageFrame();
 		$frame->body = $inv;
 		$conf = array();
 		$inv->execute($frame, $conf);
-		$this->assertTrue(MessageQueueSample::$testP1 == "p1_suffix", "Non-DO method invocation correctly set its static output");
+		$this->assertTrue(MessageQueue_Object::$testP1 == "p1_suffix", "Non-DO method invocation correctly set its static output");
 	}
 
 	/**
@@ -57,7 +57,7 @@ class MessageQueueTest extends SapphireTest {
 	 * data object method.
 	 */
 	function testMethodInvocationDataObject() {
-		$obj = new MessageQueueSampleDO();
+		$obj = new MessageQueueTest_DataObject();
 		$obj->prop1 = "p1";
 		$obj->prop2 = 2;
 		$obj->write();
@@ -69,7 +69,7 @@ class MessageQueueTest extends SapphireTest {
 		$conf = array();
 		$inv->execute($frame, $conf);
 
-		$obj2 = DataObject::get_by_id("MessageQueueSampleDO", $id);
+		$obj2 = DataObject::get_by_id("MessageQueueTest_DataObject", $id);
 		$this->assertTrue($obj2->result == "p12_suffix", "DO method invocation correctly set its static output");
 	}
 
@@ -334,5 +334,71 @@ class MessageQueueTest extends SapphireTest {
 	static function doCountCalls() {
 		self::$countedCalls++;
 	}
+
+	static $saved_interfaces = null;
+
+	/**
+	 * Get the existing configuration
+	 * @return void
+	 */
+	function setUpOnce() {
+		self::$saved_interfaces = MessageQueue::get_interfaces();
+
+		// Clear all interface definitions. Individual tests will provide their own.
+		foreach (self::$saved_interfaces as $name => $def) MessageQueue::remove_interface($name);
+	}
+
+	// At the start of each test, ensure the default configuration is in place. Many of the tests
+	// expect this.
+	function setUp() {
+		// clear whatever is there
+		foreach (MessageQueue::get_interfaces() as $name => $def) MessageQueue::remove_interface($name);
+
+		// add the default ones.
+		foreach (self::$saved_interfaces as $name => $def) MessageQueue::add_interface($name, $def);
+
+		parent::setUp();
+	}
+
+	/**
+	 * After executing the message queue tests, restore the original queue interfaces.
+	 * @return void
+	 */
+	function tearDownOnce() {
+		// Remove any queue definitions that are set up by tests. Currently only 'default' is used.
+		MessageQueue::remove_interface("default");
+
+		// Restore each interface.
+		foreach (self::$saved_interfaces as $name => $def) MessageQueue::add_interface($name, $def);
+
+		parent::tearDownOnce();
+	}
 }
 
+class MessageQueueTest_DataObject extends DataObject implements TestOnly {
+	static $db = array(
+		"prop1" => "Varchar",
+		"prop2" => "Int",
+		"result" => "Varchar"
+	);
+
+	function doDataObjectMethod($p1 = null) {
+		$this->result = $this->prop1 . $this->prop2 . $p1;
+		$this->write();
+	}
+}
+
+class MessageQueue_Object extends Object implements TestOnly {
+	var $prop1 = null;
+	static $testP1 = null;
+
+	function __construct($p1 = null) {
+		$this->prop1 = $p1;
+	}
+
+	function doNonDOMethod($p1 = null) {
+		self::$testP1 = $this->prop1 . $p1;
+	}
+}
+
+?>

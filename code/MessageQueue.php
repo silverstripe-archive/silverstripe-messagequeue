@@ -56,6 +56,15 @@ class MessageQueue {
 	}
 
 	/**
+	 * Method to return the interfaces configuration, primarily for the message queue so it can restore back.
+	 * @static
+     * @return void
+	 */
+	static function get_interfaces() {
+		return self::$interfaces;
+	}
+
+	/**
 	 * Location of debugging files, null if not debugging.
 	 * @var String
 	 */
