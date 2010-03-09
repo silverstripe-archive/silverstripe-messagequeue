@@ -80,7 +80,7 @@ class MessageQueueTest extends SapphireTest {
 	}
 
 	/**
-//	 * Test a message send using the default configuration (uses SimpleDBMQ, clears queue on
+	 * Test a message send using the default configuration (uses SimpleDBMQ, clears queue on
 	 * PHP shutdown.
 	 */
 	function testMessageSendDefaultConfig() {
@@ -346,6 +346,8 @@ class MessageQueueTest extends SapphireTest {
 
 		// Clear all interface definitions. Individual tests will provide their own.
 		foreach (self::$saved_interfaces as $name => $def) MessageQueue::remove_interface($name);
+
+		parent::setUpOnce();
 	}
 
 	// At the start of each test, ensure the default configuration is in place. Many of the tests
