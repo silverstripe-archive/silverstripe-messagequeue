@@ -37,7 +37,7 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 
 		// OK, start a transaction, or if we are in MySQL, create a lock on the SimpleDBMQ table.
 		if ($conn instanceof MySQLDatabase) $res = $conn->query('lock table SimpleDBMQ write');
-		else if ($conn->method_exists('startTransaction')) $conn->startTransaction();
+		else if (method_exists($conn, 'startTransaction')) $conn->startTransaction();
 
 		try {
 			$msgs = DataObject::get("SimpleDBMQ", $queue ? ("QueueName='$queue'") : "", null, null, $limit ? array("limit" => $limit, "start" => 0) : null);
@@ -51,12 +51,12 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 
 			// Commit transaction, or in MySQL just release the lock
 			if ($conn instanceof MySQLDatabase) $res = $conn->query('unlock tables');
-			else if ($conn->method_exists('endTransaction')) $conn->endTransaction();
+			else if (method_exists($conn, 'endTransaction')) $conn->endTransaction();
 		}
 		catch (Exception $e) {
 			// Rollback, or in MySQL just release the lock
 			if ($conn instanceof MySQLDatabase) $res = $conn->query('unlock tables');
-			else if ($conn->method_exists('transactionRollback')) $conn->transactionRollback();
+			else if (method_exists($conn, 'transactionRollback')) $conn->transactionRollback();
 
 			throw $e;
 		}
