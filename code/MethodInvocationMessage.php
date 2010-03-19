@@ -45,6 +45,19 @@ class MethodInvocationMessage implements MessageExecutable {
 	}
 
 	/**
+	 * user_errors of these types will be ignored during execution. If an error is not of one
+	 * of these types, it will be thrown as an exception.
+	 */
+	static private $ignored_error_types = array(
+		E_WARNING,
+		E_NOTICE,
+		E_CORE_WARNING,
+		E_COMPILE_WARNING,
+		E_USER_WARNING,
+		E_USER_NOTICE
+	);
+
+	/**
 	 * Execute this method invocation object. If there are problems, throws an exception,
 	 * including if user_error is called during the call (suppressed user_error, but detects
 	 * if a user_error was ignored).
@@ -74,14 +87,16 @@ class MethodInvocationMessage implements MessageExecutable {
 
 		// OK, see if there has been an error, because we have suppressed the calls with @.
 		// We need to compare it with $lastError, which was the status before we made the call,
-		// and only barf if the error is new. Sigh.
+		// and only barf if the error is new. Sigh. Oh, ignore warnings and notices.
 		$err = error_get_last();
 
-		if ($err && (!$lastError ||
-					 $err["type"] != $lastError["type"] ||
-					 $err["message"] != $lastError["message"] ||
-					 $err["file"] != $lastError["file"] ||
-					 $err["line"] != $lastError["line"])) {
+		if ($err &&
+			!in_array($err['type'], self::$ignored_error_types) &&
+			(!$lastError ||
+			 $err["type"] != $lastError["type"] ||
+			 $err["message"] != $lastError["message"] ||
+			 $err["file"] != $lastError["file"] ||
+			 $err["line"] != $lastError["line"])) {
 			throw new Exception("Error detected in method invocation:" . print_r($err, true));
 		}
 
