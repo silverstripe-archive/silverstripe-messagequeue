@@ -385,6 +385,10 @@ class MessageQueue {
 						SS_Log::log($e, null);
 						echo $e->getMessage();
 						break;
+					case "callback":
+						if (!$arg) throw new Exception("delivery of message failed with error callback indicated, but no callback function supplied");
+						call_user_func_array($arg, array($e, $msgframe));
+						break;
 					default:
 						throw new Exception("Invalid onerror action '$action'");
 				}

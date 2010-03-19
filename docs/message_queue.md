@@ -257,6 +257,7 @@ processing delivery exceptions.
 		"log",
 		"requeue",
 		"requeue" => "errorQueue",
+		"callback" => array("MyClass", "method"),
 		"drop"
 	),
 	...
@@ -264,12 +265,17 @@ processing delivery exceptions.
 
 It is a list of commands of these forms, so more than one action can be taken.
 
-* "log" logs the message via SS_Log::log
+* "log" logs the message via SS_Log::log. Note that SS_Log has options for where
+  errors are logged, including notification email. This needs to be configured separately
+  in the application.
 * "requeue" puts the message back in the same queue for later processing.
   (existing queue behaviour will exclude the message being executed again in
   the same queue consumption call)
 * "requeue" => "queue" puts the message onto the named queue for later
   processing.
+* "callback" => $method  invokes the specified method. $method should be a valid
+   callback definition. The callback function is passed two parameters, the exception
+   object and the messageframe that failed to be delivered.
 * "drop" does nothing. If used alone, the exceptioned message will be dropped.
 
 Specifying a Callback for Delivery

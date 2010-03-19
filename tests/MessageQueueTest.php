@@ -22,6 +22,7 @@ class MessageQueueTest extends SapphireTest {
 	 *   - test delivery via MethodInvocationMessage and non-SQL interface
 	 *   - test delivery of non-MethodInvocationMessage
 	 *   - test send and delivery of plain text message
+	 *   - test callback on delivery error
 	 */
 
 	/**
