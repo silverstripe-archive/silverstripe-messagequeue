@@ -54,7 +54,8 @@ class MethodInvocationMessage implements MessageExecutable {
 		E_CORE_WARNING,
 		E_COMPILE_WARNING,
 		E_USER_WARNING,
-		E_USER_NOTICE
+		E_USER_NOTICE,
+		E_STRICT
 	);
 
 	/**
