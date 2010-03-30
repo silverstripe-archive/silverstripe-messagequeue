@@ -75,7 +75,7 @@ class MessageQueueTest extends SapphireTest {
 	}
 
 	private function getQueueSizeSimpleDB($queue) {
-		$ds = DataObject::get("SimpleDBMQ", "QueueName='$queue'");
+		$ds = DataObject::get("SimpleDBMQ", '"QueueName"=\'' . $queue . '\'');
 		if (!$ds) return 0;
 		return ($ds->Count());
 	}
