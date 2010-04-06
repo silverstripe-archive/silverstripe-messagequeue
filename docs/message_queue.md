@@ -6,6 +6,13 @@ for SilverStripe applications. It can handle simple uses such as queueing
 actions for long running process execution, as well as bi-directional
 interaction with external messaging systems such as ApacheMQ.
 
+Installation
+------------
+
+Extract messagequeue into the base folder of your SilverStripe application. Default configuration applies, documented
+below.
+
+
 Key Characteristics
 -------------------
 
