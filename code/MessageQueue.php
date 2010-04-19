@@ -202,7 +202,7 @@ class MessageQueue {
 	 * @param String $queue Name of the queue.
 	 * @return String
 	 */
-	protected static function get_queue_interface($queue = null) {
+	static function get_queue_interface($queue = null) {
 		$interfaceName = null;
 		foreach (self::$interfaces as $name => $conf) {
 			if ($queue == null) {
@@ -210,11 +210,16 @@ class MessageQueue {
 				break;
 			}
 			else if (isset($conf['queues'])) {
-				if ((is_array($conf['queues']) && in_array($queue, $conf['queues'])) ||
-					(substr($conf['queues'], 0, 1) == '/' && preg_match($conf['queues'], $queue)) ||
-					(is_string($conf['queues']) && $conf['queues'] == $queue)) {
+				if (is_array($conf["queues"]) && in_array($queue, $conf["queues"])) {
 					$interfaceName = $name;
 					break;
+				}
+				else if (is_string($conf["queues"])) {
+					if ((substr($conf['queues'], 0, 1) == '/' && preg_match($conf['queues'], $queue)) ||
+						(is_string($conf['queues']) && $conf['queues'] == $queue)) {
+						$interfaceName = $name;
+						break;
+					}
 				}
 			}
 		}
@@ -228,7 +233,7 @@ class MessageQueue {
 	 * @param String $queue
 	 * @return Array
 	 */
-	protected static function get_queue_config($queue) {
+	static function get_queue_config($queue) {
 		$interface = self::get_queue_interface($queue);
 		$conf = self::$interfaces[$interface];
 
