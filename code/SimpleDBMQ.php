@@ -22,8 +22,6 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 	}
 
 	/**
-	 * @TODO: This really needs to use transactions to ensure that only one reader will get each message. Might need
-	 *	to implement a lock or something for MySQL MyISAM :-(
 	 * @param String $queue
 	 * @param <type> $interfaceConfig
 	 * @param <type> $options

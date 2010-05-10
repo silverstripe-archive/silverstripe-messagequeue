@@ -18,7 +18,7 @@ class MessageQueue {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => true
+				"onShutdown" => "all"
 			),
 			"delivery" => array(
 				"onerror" => array(
@@ -88,8 +88,8 @@ class MessageQueue {
 	protected static $onshutdown_arg = "";
 
 	/**
-	 * This sets the mode in which processOnShutdown is handled, and may need
-	 * to be called if the shutdown processing dosn't work.
+	 * This sets the mode in which onShutdown is handled, and may need
+	 * to be called if the shutdown processing doesn't work.
 	 * There are 2 options:
 	 *  - "sake" (default)	Sub-processes are run using exec, with sapphire/sake
 	 *						being called to run the process. This requires
@@ -111,11 +111,27 @@ class MessageQueue {
 	/**
 	 * Send a message to queue. Works out which interface to send it to, and dispatches it.
 	 * @param String $queue Name of queue to send message to
-	 * @param Any $message The message to send.
-	 * @param Map $header A map of header items.
+	 * @param Any $message			The message to send.
+	 * @param Map $header			A map of header items.
+	 * @param Boolean $buffered		If the queue specifies a buffer and this is true, the messages will be
+	 * 								sent to the buffer instead. If the queue specifies a buffer and this is false,
+	 * 								the buffer is bypassed, and the messages are sent directly to destination.
+	 * 								If the queue does not specify a buffer, this has no effect.
 	 */
-	static function send($queue, $message, $header = array()) {
+	static function send($queue, $message, $header = array(), $buffered = true) {
 		$conf = self::get_queue_config($queue);
+		$sendOptions = isset($conf["send"]) ? $conf["send"] : array();
+		$sendQueue = $queue;
+
+		// If we are buffering and the queue is configured with a buffer, we'll use the buffer queue's config
+		// instead, because we're queueing to that.
+		$buffer = "";
+		if ($buffered && isset($conf["send"]) && is_array($conf["send"]) && isset($conf["send"]["buffer"])) $buffer = $conf["send"]["buffer"];
+		if ($buffer) {
+			$sendQueue = $buffer;
+			$conf = self::get_queue_config($buffer);
+		}
+
 		$inst = singleton($conf["implementation"]);
 		if (is_object($message) && $message instanceof MessageFrame) {
 			$msgframe = $message;
@@ -125,15 +141,14 @@ class MessageQueue {
 		}
 		else $msgframe = new MessageFrame($message, $header);
 
-		$sendConf = isset($conf["send"]) ? $conf["send"] : array();
-
 		self::encode_message($msgframe, $conf);
 
-		$inst->send($queue, $msgframe, $conf);
+		$inst->send($sendQueue, $msgframe, $conf);
 
 		// If we are asked to process this queue on shutdown, ensure the php shutdown function
 		// is registered, and that this queue has been added to the list of queues to process.
-		if (isset($sendConf["processOnShutdown"]) && $sendConf["processOnShutdown"]) {
+		// We sort out what actions are needed later.
+		if (isset($sendOptions["onShutdown"])) {
 			if (!self::$queues_to_flush_on_shutdown) {
 				register_shutdown_function(array(__CLASS__, "consume_on_shutdown"));
 				self::$queues_to_flush_on_shutdown = array();
@@ -174,15 +189,25 @@ class MessageQueue {
 			`echo "no messages currently in queue\n" $stdout`;
 
 		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy) {
+			$config = MessageQueue::get_queue_config($queue);
+			if (!isset($config["send"]) || !is_array($config["send"])) throw new Exception("MessageQueue: unexpectedly invalid/absent send config on onShutdown");
+			$opts = $config["send"] ? $config["send"] : array();
+			$opts = isset($opts["onShutdown"]) ? $opts["onShutdown"] : "";
+
+			if (is_string($opts)) $opts = explode(",", $opts);
+			if (in_array("none", $opts)) $opts = array();
+			if (in_array("all", $opts)) $opts = array("flush", "consume");
+			$actions = implode(",", $opts);
+
 			switch (self::$onshutdown_option) {
 				case "sake":
 					$exec = Director::getAbsFile("sapphire/sake");
-					`$exec MessageQueue_Consume queue=$queue $stdout $stderr &`;
+					`$exec MessageQueue_Process queue=$queue actions=$actions $stdout $stderr &`;
 					break;
 				case "phppath":
 					$php = self::$onshutdown_arg;
 					$sapphire = Director::getAbsFile("sapphire");
-					$cmd = "$php $sapphire/cli-script.php MessageQueue_Consume queue=$queue $stdout $stderr &";
+					$cmd = "$php $sapphire/cli-script.php MessageQueue_Process queue=$queue actions=$actions $stdout $stderr &";
 					`$cmd`;
 					if (self::$debugging_path) {
 						`echo "queue is $queue\n" $stdout`;
@@ -240,6 +265,29 @@ class MessageQueue {
 		if (!$conf) throw new Exception("Error sending message to queue '$queue': no matching configured queue");
 		if (!isset($conf["implementation"])) throw new Exception("Error sending message to queue '$queue': configuration doesnt provide a message queue implementation class");
 		return $conf;
+	}
+
+	/**
+	 * Flush any buffered messages on the specified queue. If the queue is not buffered, or the buffer is empty, it has
+	 * no effect.
+	 * @static
+	 * @param  $queue
+	 * @return void
+	 */
+	static function flush($queue) {
+		$conf = self::get_queue_config($queue);
+
+		if (!$conf) throw new Exception("Error flushing queue '$queue': no matching configured queue");
+
+		if (!isset($conf["send"]) || !(is_array($sendOpts = $conf["send"]))) return;
+		if (!isset($sendOpts["buffer"])) return; // no buffer
+		$buffer = $sendOpts["buffer"];
+
+		// The buffer is a queue. Get all the messages from that queue, and then invoke send on our implementation class
+		$messages = MessageQueue::get_messages($buffer);
+
+		// Send these messages to the original queue, with no buffering.
+		if ($messages) foreach ($messages as $m) MessageQueue::send($queue, $m, array(), false);
 	}
 
 	/**
@@ -354,7 +402,23 @@ class MessageQueue {
 		$del = $conf["delivery"];
 
 		try {
-			if (isset($del["callback"])) {
+			if (isset($del["requeue"])) {
+				// delivery means stick it in another queue. This is expected to be an array with at least a queue name
+				if (!is_array($del["requeue"])) throw new Exception("delivery of message failed because it specifies requeue, but it is not the expected array");
+				$newQueue = isset($del["requeue"]["queue"]) ? $del["requeue"]["queue"] : null;
+				if (!$newQueue) throw new Exception("delivery of message failed because it specified requeue, but doesn't specify a queue");
+				$newConf = MessageQueue::get_queue_config($newQueue);
+				if (isset($del["requeue"]["immediate"]) && $del["requeue"]["immediate"]) {
+					// Immediate execution - get the configuration for the queue, and recurse to deliver immediately.
+					MessageQueue::deliver_message($msgframe, $newConf);
+				}
+				else {
+					// Not immediate, so put this message on the specified queue, and it will hopefully get delivered at
+					// some later time.
+					MessageQueue::send($newConf, $msgframe);
+				}
+			}
+			else if (isset($del["callback"])) {
 				// delivery is via a callback
 				call_user_func_array($del["callback"], array($msgframe, $conf));
 			}
@@ -482,14 +546,31 @@ class MessageFrame extends ViewableData {
 /**
  * A simple controller that can be used to consume messages.
  */
-class MessageQueue_Consume extends Controller {
+class MessageQueue_Process extends Controller {
 	function index() {
 		$req = $this->getRequest()->requestVars();
 		$queue = ($req && isset($req["queue"])) ? $req["queue"] : null;
 		$limit = ($req && isset($req["limit"])) ? $req["limit"] : null;
 
-		$count = MessageQueue::consume($queue, $limit ? array("limit" => $limit) : null);
-		if (!$count) return $this->httpError(404, 'No messages');
+		// Work out what processes need to be run. Tries 'actions' and 'action', which are synonyms.
+		if ($req && isset($req["actions"])) $actions = $req["actions"];
+		else if ($req && isset($req["action"])) $actions = $req["action"];
+		else $actions = "all";
+
+		$actions = explode(",", $actions);
+		$flush = false;
+		$consume = false;
+		foreach ($actions as $a) {
+			if ($a == "flush" || $a == "all") $flush = true;
+			if ($a == "consume" || $a == "all") $consume = true;
+		}
+
+		if ($flush) MessageQueue::flush($queue);
+
+		if ($consume) {
+			$count = MessageQueue::consume($queue, $limit ? array("limit" => $limit) : null);
+			if (!$count) return $this->httpError(404, 'No messages');
+		}
 		return 'True';
 	}
 }
