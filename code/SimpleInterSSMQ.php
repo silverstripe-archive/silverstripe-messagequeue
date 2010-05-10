@@ -139,7 +139,19 @@ class SimpleInterSSMQ implements MessageQueueImplementation {
  * Controller class for remote systems to call to receive messages. Expects to be called via POST
  */
 class SimpleInterSSMQ_Accept extends Controller {
+	/**
+	 * Determines if this controller is accessible. Turned off by default. To allow a connections it needs to be
+	 * explicitly enabled. If disabled, any access to this control results in a 404.
+	 */
+	static $enabled = false;
+
+	static function setEnabled($enabled) {
+		self::$enabled = $enabled;
+	}
+
 	function index() {
+		if (!self::$enabled) return $this->httpError(404, "There is nothing here");
+
 		$request = $this->getRequest();
 		if (!$request->isPOST()) return $this->badRequest();
 
