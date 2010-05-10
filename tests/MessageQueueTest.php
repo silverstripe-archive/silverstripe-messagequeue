@@ -104,7 +104,7 @@ class MessageQueueTest extends SapphireTest {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => false
+				"onShutdown" => "none"
 			),
 			"delivery" => array(
 				"onerror" => array(
@@ -147,7 +147,7 @@ class MessageQueueTest extends SapphireTest {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => false
+				"onShutdown" => "none"
 			),
 			"delivery" => array(
 				"onerror" => array(
@@ -195,7 +195,7 @@ class MessageQueueTest extends SapphireTest {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => false
+				"onShutdown" => "none"
 			),
 			"delivery" => array(
 				"onerror" => array(
@@ -225,7 +225,7 @@ class MessageQueueTest extends SapphireTest {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => false
+				"onShutdown" => "none"
 			),
 			"delivery" => array(
 				"callback" => array("MessageQueueTest", "messageCallback"),
@@ -271,7 +271,7 @@ class MessageQueueTest extends SapphireTest {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "raw", // no encoding
 			"send" => array(
-				"processOnShutdown" => false
+				"onShutdown" => "none"
 			),
 			"delivery" => array(
 				"callback" => array("MessageQueueTest", "messageCallback"),
@@ -307,7 +307,7 @@ class MessageQueueTest extends SapphireTest {
 			"implementation" => "SimpleDBMQ",
 			"encoding" => "php_serialize",
 			"send" => array(
-				"processOnShutdown" => false
+				"onShutdown" => "none"
 			),
 			"delivery" => array(
 				"onerror" => array(
@@ -328,6 +328,14 @@ class MessageQueueTest extends SapphireTest {
 		$this->assertTrue(MessageQueue::consume_all_queues("default") == 3, "Consumed messages off 3 queues");
 		$this->assertTrue(self::$countedCalls == 3, "3 messages were delivered");
 
+	}
+
+	function testInterSS() {
+		$simq = new SimpleInterSSMQ();
+		$frame = new MessageFrame();
+		$frame->body = "hello";
+		$conf = array("implementation_options" => array("remoteServer" => "http://localhost/test_receiver"));
+		$dummy = $simq->encode("test", $frame, $conf);
 	}
 
 	static $countedCalls = 0;
