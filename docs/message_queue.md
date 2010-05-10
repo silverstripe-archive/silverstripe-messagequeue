@@ -268,6 +268,64 @@ to process messages received on these queues. Errors on either of these queues
 will be logged and re-queued onto queue2. Messages sent to any other queue will
 be handled by the second interface, which is processed on PHP shutdown.
 
+
+SimpleInterSSMQ
+---------------
+This interface provides a simple way to send messages from one SilverStripe installation to another without requiring
+any additional installed software. It works by the sender initiating an HTTP request to a controller at the destination
+whch accepts messages.
+
+An example configuration on the send is:
+
+`
+MessageQueue::add_interface("default", array(
+        "queues" => array("mydest"),
+        "implementation" => "SimpleInterSSMQ",
+        "implementation_options" => array("remoteServer" => "http://mydestination.com/SimpleInterSSMQ_Accept"),
+        "encoding" => "php_serialize",
+        "send" => array(
+               "buffer" => "mydest_buffer",
+                "onShutdown" => "flush"
+        ),
+        "delivery" => array(
+                "onerror" => array(
+                        "log"
+                ),
+)));
+
+MessageQueue::add_interface("buffer", array(
+        "queues" => array("mydest_buffer"),
+        "implementation" => "SimpleDBMQ",
+        "delivery" => array(
+                   "onerror" => array("log")
+        )
+));
+`
+
+It sets up a queue called `mydest`. The `implementation_options` specify the remote accepting controller. This example
+also specifies a buffer queue called `mydest_buffer`. When messages are sent to `mydest`, they are buffered into
+`mydest_buffer`, and actually in a process initiated by PHP shutdown for better user performance.
+
+On the destination, the following should be present in mysite/_config.php:
+`
+SimpleInterSSMQ_Accept::setEnabled(true);
+`
+
+This is required because SimplerInterSSMQ_Accept controller is disabled by default for security purposes.
+
+To send a message from the source, it is a simple message send:
+
+`
+	MessageQueue::send("mydest", $someObject);
+`
+
+or even a self-invoking message:
+`
+	MessageQueue::send("mydest", new MethodInvocationMessage("SomeClass", "someMethod", $parameter));
+`
+
+
+
 ApacheMQ
 --------
 
@@ -306,6 +364,7 @@ just within the SilverStripe application.
 
 The second interface provides the "background" queue, with internal queuing and
 processing on shutdown as before.
+
 
 Error Handling Options
 ----------------------
