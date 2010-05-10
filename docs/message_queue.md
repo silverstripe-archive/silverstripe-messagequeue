@@ -2,15 +2,16 @@ Introduction
 ============
 
 The MessageQueue module provides a simple, lightweight message queueing mechanism
-for SilverStripe applications. It can handle simple uses such as queueing
-actions for long running process execution, as well as bi-directional
-interaction with external messaging systems such as ApacheMQ.
+for SilverStripe applications. It supports the following features:
+* queueing actions for long running process execution
+* message sending between SilverStripe installations
+* bi-directional interaction with external messaging systems ssuch as ApacheMQ.
 
 Installation
 ------------
 
-Extract messagequeue into the base folder of your SilverStripe application. Default configuration applies, documented
-below.
+Extract messagequeue into the base folder of your SilverStripe application. Default
+configuration applies, documented below.
 
 
 Key Characteristics
@@ -24,10 +25,12 @@ used to set one or more named *interfaces*.
 Each interface provides one or more named *queues*. Each interface also
 specifies an *implementation*, a class that implements a message queue or
 interfaces to an external component that is the message queue. The module
-includes two implementations:
+includes three implementations:
 
 * SimpleDBMQ - this implements message queueing within SilverStripe, in the
   database. This implementation has no external dependencies.
+* SimpleInterSSMQ - this implements sending messages to another SilverStripe
+  installation over HTTP.
 * StompMQ - this implements an interface to external messaging queueing
   components (such as ApacheMQ) using the Stomp protocol.
 
@@ -80,7 +83,8 @@ circumstance:
 * via a cron job or other external trigger.
 * in a sub-process initiated after php shutdown (so that events queued in the
   application can be processed near-simultaneously without introducing delay in
-  the user interaction.)
+  the user interaction, and for buffered queues, messages to remote systems can
+  be delivered outside the page request process)
 * programmatically within the application
 
 Messages are generally received in bulk, with options to limit this. Once a set
@@ -101,9 +105,60 @@ There are 3 message delivery options:
 
 Notes:
 
-* Queue implementation classes guarantee that any set of messages retrieved are done atomically, so that
-  multiple processes can process a queue but guaranteeing that each message delivery attempt is done once. A
-  message is only successfully delivered once.
+* Queue implementation classes guarantee that any set of messages retrieved are
+  done atomically, so that multiple processes can process a queue but
+  guaranteeing that each message delivery attempt is done once. A message is
+  only successfully delivered once.
+
+Output Buffering
+----------------
+
+When sending messages to a remote system, it is often beneficial to buffer the
+outgoing messages and send them outside of the PHP request that is sending
+them. Output buffering is very easy to configure, and involves setting up
+another queue to act as the buffer. For example:
+
+`
+	MessageQueue::add_interface("default", array(
+		"queues" => array("remote"),
+		"implementation" => "SimpleInterSSMQ",
+		"implementation_options" => array("remoteServer" => "http://myothersite.com/SimpleInterSSMQ_Accept"),
+		"encoding" => "php_serialize",
+		"send" => array(
+				"buffer" => "remote_buffer",
+				"onShutdown" => "flush"
+		),
+		"delivery" => array(
+				"onerror" => array("log")
+		)
+	));
+
+	MessageQueue::add_interface("buffer", array(
+		"queues" => array("remote_buffer"),
+		"implementation" => "SimpleDBMQ",
+		"send" => array(
+			"onShutdown" => "none"
+		),
+		"delivery" => array(
+				 "onerror" => array("log")
+		)
+	));
+`
+
+The main points are:
+* The queue `remote` specifies a buffer in the send options. This is the name
+  of the buffer queue.
+* `onShutdown` specifies that the queue should be flushed on shutdown, which
+  is done in another process.
+* Creating another queue, remote_buffer, using the SimpleDBMQ interface. This
+  queue is configured not to process on shutdown (it shouldn't be explicitly
+  consumed)
+
+When a message is sent to `remote`, the message is actually sent to the buffer
+queue. When the `remote` queue is flushed, it reads back the messages queued on
+the buffer queue, and at that point sends them via real configured interface
+(in this case, SimpleInterSSMQ).
+
 
 Exception Handling
 ------------------
@@ -152,7 +207,7 @@ The default configuration is:
 		"implementation" => "SimpleDBMQ",
 		"encoding" => "php_serialize",
 		"send" => array(
-			"processOnShutdown" => true
+			"onShutdown" => "all"
 		),
 		"delivery" => array(
 			"onerror" => array(
@@ -198,7 +253,7 @@ Multiple Queues
 		"implementation" => "SimpleDBMQ",
 		"encoding" => "php_serialize",
 		"send" => array(
-			"processOnShutdown" => true
+			"onShutdown" => "all"
 		),
 		"delivery" => array(
 			"onerror" => array(
@@ -235,7 +290,7 @@ details thru, and how to use the durable clients feature of Stomp.)
 		"implementation" => "SimpleDBMQ",
 		"encoding" => "php_serialize",
 		"send" => array(
-			"processOnShutdown" => true
+			"onShutdown" => "all"
 		),
 		"delivery" => array(
 			"onerror" => array(
@@ -272,17 +327,17 @@ processing delivery exceptions.
 
 It is a list of commands of these forms, so more than one action can be taken.
 
-* "log" logs the message via SS_Log::log. Note that SS_Log has options for where
-  errors are logged, including notification email. This needs to be configured separately
-  in the application.
+* "log" logs the message via SS_Log::log. Note that SS_Log has options for
+  where errors are logged, including notification email. This needs to be
+  configured separately in the application.
 * "requeue" puts the message back in the same queue for later processing.
   (existing queue behaviour will exclude the message being executed again in
   the same queue consumption call)
 * "requeue" => "queue" puts the message onto the named queue for later
   processing.
-* "callback" => $method  invokes the specified method. $method should be a valid
-   callback definition. The callback function is passed two parameters, the exception
-   object and the messageframe that failed to be delivered.
+* "callback" => $method  invokes the specified method. $method should be a
+  valid callback definition. The callback function is passed two parameters,
+  the exception object and the messageframe that failed to be delivered.
 * "drop" does nothing. If used alone, the exceptioned message will be dropped.
 
 Specifying a Callback for Delivery
@@ -318,16 +373,52 @@ forms:
 				forward slash. In this example, any queue name ending with
 				AppQ, such as MyAppQ, will be matched against the interface.
 
+Specifying Requeuing for Delivery
+---------------------------------
+
+`
+	...
+	"delivery" => array(
+		"requeue" => array(
+			"queue" => "otherQueue",
+			"immediate" => true
+		)
+	),
+	...
+`
+
+With this option, you can specify that when delivery is attempted, it is put
+into another queue. If the immediate option is set, the delivery of the message
+on that queue is attempted in-process. If immediate is false, no further
+immediate attempt is made to deliver the message from the other queue - it will
+be delivered according to the deliver execution rules of that queue.
+
 Initiating Message Queue Processing
 ===================================
 
+There are two distinct processes that can be initiated on a queue, as follows:
+
+* `flush` has effect only on a buffered queue, and will cause the buffered
+  messages to be sent to the real destination.
+* `consume` will cause messages on the queue to be retrieved and delivered.
+
+Typically, one or both of these actions can be executed on a queue.
+
 On PHP Shutdown
 ---------------
-To initiate queue consumption on the PHP shutdown of the process that initiated
-the send, you need to set that option (as above) on the interface
-configuration.
+To initiate queue processing on the PHP shutdown of the process that initiated
+the send, you need to set the `onShutdown` option on the interface
+configuration. `onShutdown` can be a single option as a string, or an array of
+option strings. The valid options are:
 
-By default, this calls the MessageQueue_Consume controller in a sub-process,
+* `flush` - invokes flush of queue.
+* `consume` - invokes consumption of the queue.
+* `all` - flush and consume
+* `none` - do neither - no process will be invoked.
+
+Flush is invoked before consume.
+
+By default, this calls the MessageQueue_Process controller in a sub-process,
 using 'sake'. This process can continue to execute after the main request
 process has finished.
 
@@ -346,18 +437,22 @@ Note: this may vary between development, testing and production environments.
 
 Externally Using Sake
 ---------------------
-Messages in a queue can be recieved and processed using the command:
+Messages in a queue can be processed using the command:
 
 `
-	sake MessageQueue_Consume "queue=myqueue"
+	sake MessageQueue_Process "queue=myqueue&actions=all"
 `
 
-This will read all messages on myqueue and deliver them to the application.
+This will flush and then consume all messages on myqueue, and delivering them
+to the application.
 
 You can limit the number of entries processed:
 `
-	sake MessageQueue_Consume "queue=myqueue&limit=10"
+	sake MessageQueue_Process "queue=myqueue&limit=10&actions=consume"
 `
+
+The `actions` query field can be a comma-separated list containing `flush`,
+`consume`, `all` or `none`.
 
 You can schedule queue consumption using cron.
 
@@ -409,5 +504,24 @@ Diagnosing Message Queue Processing on PHP Shutdown
 
 By default when a process is initiated to clear a queue on PHP shutdown, the
 process redirects output to /dev/null. To assist in debugging these processes,
-call MessageQueue::set_debugging can be called to set a directory to write log files
-to, and both stdout and stderr are redirected to real files in that directory.
+call MessageQueue::set_debugging can be called to set a directory to write log
+files to, and both stdout and stderr are redirected to real files in that
+directory.
+
+DataObject Sent Remotely
+------------------------
+
+Currently when a DataObject is sent as message body, it is serialised as a
+DataObject with a specified class and ID. When sent to a remote system there
+cannot be a guarantee that the class exists, or there is an object of that
+class and ID. Add an option to the configuration, possibly as a different
+serialisation, so that messages are serialised by value, not reference, for
+remote sends.
+
+To Do
+=====
+
+* Allow messages to be received from a buffered queue, particularly remotely.
+* SimpleInterSSMQ to implement pull behaviour, not just push.
+* Example in docs of using SimpleInterSSMQ to capture onPublish and
+  have the changes re-published on a remote site.
