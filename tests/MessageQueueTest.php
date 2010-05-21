@@ -158,7 +158,7 @@ class MessageQueueTest extends SapphireTest {
 		));
 
 		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 0, "Main queue is empty before we put anything in it");
-		MessageQueue::send("testmainqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethodWithError", "p1", 2));
+		MessageQueue::send("testmainqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethodWithError", "p1", 2));	
 		MessageQueue::send("testmainqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethod", "p1", 2));
 		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 2, "Main queue has two items after we add to it");
 		$this->assertTrue($this->getQueueSizeSimpleDB("testerrorqueue") == 0, "Error queue is empty before we put anything in it");
@@ -178,7 +178,8 @@ class MessageQueueTest extends SapphireTest {
 	 * Static method that throws an exception on delivery if called in a method.
 	 */
 	static function doStaticMethodWithError() {
-		throw new Exception("doStaticMethodWithError called. All OK.");
+		// We pass an empty string so it doesn't show up in the TestRunner output
+		throw new Exception("");
 	}
 
 	private static $testP1 = null;
@@ -206,6 +207,7 @@ class MessageQueueTest extends SapphireTest {
 
 		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 0, "Main queue is empty before we put anything in it");
 		MessageQueue::send("testmainqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethodWithError", "p1", 2));
+		
 		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 1, "Main queue has an item after we add to it");
 
 		// clear the queue, causing the message to execute and fail
