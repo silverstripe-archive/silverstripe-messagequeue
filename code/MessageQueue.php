@@ -185,8 +185,6 @@ class MessageQueue {
 				foreach ($msgs as $msg) `echo " queue={$msg->QueueName} msg={$msg->Message}\n" $stdout`;
 			}
 		}
-		else
-			`echo "no messages currently in queue\n" $stdout`;
 
 		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy) {
 			$config = MessageQueue::get_queue_config($queue);
