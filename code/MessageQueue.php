@@ -88,6 +88,17 @@ class MessageQueue {
 	protected static $onshutdown_arg = "";
 
 	/**
+	 * By default, when unit tests are run, the onshutdown is not actually
+	 * registered and the action is not executed, as it is executed outside
+	 * the test environment. It is difficult but not impossible for unit tests
+	 * to check that messages have been delivered. If this is set to true,
+	 * the shutdown function will be registered even when running unit tests,
+	 * to cater for those tests that have a way to check delivery of the
+	 * message. Set via set_force_onshutdown_when_testing().
+	 */
+	protected static $force_onshutdown_when_testing = false;
+
+	/**
 	 * This sets the mode in which onShutdown is handled, and may need
 	 * to be called if the shutdown processing doesn't work.
 	 * There are 2 options:
@@ -106,6 +117,14 @@ class MessageQueue {
 		self::$onshutdown_option = $option;
 		self::$onshutdown_arg = $arg;
 		if ($option == "phppath" && !$arg) throw new Exception("set_onshutdown_option: Path is required for phppath option");
+	}
+
+	static function set_force_onshutdown_when_testing($value) {
+		self::$force_onshutdown_when_testing = $value;
+	}
+
+	static function get_force_onshutdown_when_testing() {
+		return self::$force_onshutdown_when_testing;
 	}
 
 	/**
@@ -148,7 +167,8 @@ class MessageQueue {
 		// If we are asked to process this queue on shutdown, ensure the php shutdown function
 		// is registered, and that this queue has been added to the list of queues to process.
 		// We sort out what actions are needed later.
-		if (isset($sendOptions["onShutdown"])) {
+		if (isset($sendOptions["onShutdown"]) &&
+			(!SapphireTest::is_running_test() || self::$force_onshutdown_when_testing)) {
 			if (!self::$queues_to_flush_on_shutdown) {
 				register_shutdown_function(array(__CLASS__, "consume_on_shutdown"));
 				self::$queues_to_flush_on_shutdown = array();
