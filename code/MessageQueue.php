@@ -83,6 +83,20 @@ class MessageQueue {
 		self::$debugging_path = $path;
 	}
 
+	/**
+	 * Short-circuit the MessageQueue, so it delivers immediately.
+	 * This is intended for debug purposes and for testing.
+	 */
+	protected static $force_immediate_delivery = false;
+
+	static function set_force_immediate_delivery($value) {
+		self::$force_immediate_delivery = $value;
+	}
+
+	static function get_force_immediate_delivery() {
+		return self::$force_immediate_delivery;
+	}
+
 	protected static $onshutdown_option = "sake";
 
 	protected static $onshutdown_arg = "";
@@ -160,20 +174,25 @@ class MessageQueue {
 		}
 		else $msgframe = new MessageFrame($message, $header);
 
-		self::encode_message($msgframe, $conf);
+		if (self::$force_immediate_delivery) {
+			// Cut the loop short
+			self::deliver_message($msgframe, $conf);
+		}
+		else {
+			self::encode_message($msgframe, $conf);
+			$inst->send($sendQueue, $msgframe, $conf);
 
-		$inst->send($sendQueue, $msgframe, $conf);
-
-		// If we are asked to process this queue on shutdown, ensure the php shutdown function
-		// is registered, and that this queue has been added to the list of queues to process.
-		// We sort out what actions are needed later.
-		if (isset($sendOptions["onShutdown"]) &&
-			(!SapphireTest::is_running_test() || self::$force_onshutdown_when_testing)) {
-			if (!self::$queues_to_flush_on_shutdown) {
-				register_shutdown_function(array(__CLASS__, "consume_on_shutdown"));
-				self::$queues_to_flush_on_shutdown = array();
+			// If we are asked to process this queue on shutdown, ensure the php shutdown function
+			// is registered, and that this queue has been added to the list of queues to process.
+			// We sort out what actions are needed later.
+			if (isset($sendOptions["onShutdown"]) &&
+				(!SapphireTest::is_running_test() || self::$force_onshutdown_when_testing)) {
+				if (!self::$queues_to_flush_on_shutdown) {
+					register_shutdown_function(array(__CLASS__, "consume_on_shutdown"));
+					self::$queues_to_flush_on_shutdown = array();
+				}
+				self::$queues_to_flush_on_shutdown[$queue] = true;
 			}
-			self::$queues_to_flush_on_shutdown[$queue] = true;
 		}
 	}
 
