@@ -82,15 +82,21 @@ class MessageQueueTest extends SapphireTest {
 
 	/**
 	 * Test a message send using the default configuration (uses SimpleDBMQ, clears queue on
-	 * PHP shutdown.
+	 * PHP shutdown. Note we need to disable force_immediate_delivery, otherwise the message
+	 * is not in the queue.
 	 */
 	function testMessageSendDefaultConfig() {
+		$old = MessageQueue::get_force_immediate_delivery();
+		MessageQueue::set_force_immediate_delivery(false);
+
 		$this->assertTrue($this->getQueueSizeSimpleDB("testqueue") == 0, "Queue is empty before we put anything in it");
 
 		MessageQueue::send("testqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethod", "p1", 2));
 
 		// Check the message is queue in the database.
 		$this->assertTrue($this->getQueueSizeSimpleDB("testqueue") == 1, "Queue has an item after we add to it");
+	
+		MessageQueue::set_force_immediate_delivery($old);
 	}
 
 	/**
@@ -99,6 +105,10 @@ class MessageQueueTest extends SapphireTest {
 	 * just the way it was sent.
 	 */
 	function testMessageSimpleDBExplicitReceive() {
+		// save and disable force immediate, we are testing whether stuff gets queued.
+		$old = MessageQueue::get_force_immediate_delivery();
+		MessageQueue::set_force_immediate_delivery(false);
+
 		MessageQueue::add_interface("default", array(
 			"queues" => "/.*/",
 			"implementation" => "SimpleDBMQ",
@@ -117,6 +127,7 @@ class MessageQueueTest extends SapphireTest {
 		$this->assertTrue($this->getQueueSizeSimpleDB("testqueue") == 0, "Queue is empty before we put anything in it");
 		MessageQueue::send("testqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethod", "p1", 2));
 
+
 		// check message in queue
 		$this->assertTrue($this->getQueueSizeSimpleDB("testqueue") == 1, "Queue has an item after we add to it");
 
@@ -129,6 +140,8 @@ class MessageQueueTest extends SapphireTest {
 		$this->assertTrue($msg->body instanceof MethodInvocationMessage, "Got a method invocation message");
 		$this->assertTrue($msg->body->objectOrClass == "MessageQueueTest" &&
 						  $msg->body->method == "doStaticMethod", "Got the original message");
+
+		MessageQueue::set_force_immediate_delivery($old);
 	}
 
 	/**
