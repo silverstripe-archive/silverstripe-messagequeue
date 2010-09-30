@@ -188,7 +188,9 @@ class MessageQueue {
 			if (isset($sendOptions["onShutdown"]) &&
 				(!SapphireTest::is_running_test() || self::$force_onshutdown_when_testing)) {
 				if (!self::$queues_to_flush_on_shutdown) {
-					register_shutdown_function(array(__CLASS__, "consume_on_shutdown"));
+					// only register the shutdown function once, and only if asked for or defaulted
+					if (!isset($sendOptions["registerShutdown"]) || $sendOptions["registerShutdown"])
+						register_shutdown_function(array(__CLASS__, "consume_on_shutdown"));
 					self::$queues_to_flush_on_shutdown = array();
 				}
 				self::$queues_to_flush_on_shutdown[$queue] = true;
