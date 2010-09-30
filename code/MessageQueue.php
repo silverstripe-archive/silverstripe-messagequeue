@@ -669,7 +669,7 @@ class MessageQueue_Process extends Controller {
 		if ($retrigger == "yes" ) {
 			// @todo This assumes the queue is simpleDBMQ. Not performant on long queue.
 			// @todo Generalise counting.
-			$count = DB::query("select count(*) from \"SimpleDBMQ\" where \"QueueName\"='{$queue}'")->value;
+			$count = DB::query("select count(*) from \"SimpleDBMQ\" where \"QueueName\"='{$queue}'")->value();
 			if ($count > 0)
 				MessageQueue::consume_in_subprocess($queue);
 		}
