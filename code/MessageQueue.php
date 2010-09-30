@@ -230,23 +230,28 @@ class MessageQueue {
 		foreach (self::$queues_to_flush_on_shutdown as $queue => $dummy) {
 			$config = MessageQueue::get_queue_config($queue);
 			if (!isset($config["send"]) || !is_array($config["send"])) throw new Exception("MessageQueue: unexpectedly invalid/absent send config on onShutdown");
-			$opts = $config["send"] ? $config["send"] : array();
-			$opts = isset($opts["onShutdown"]) ? $opts["onShutdown"] : "";
+			$sendConf = $config["send"] ? $config["send"] : array();
+			$opts = isset($sendConf["onShutdown"]) ? $sendConf["onShutdown"] : "";
 
 			if (is_string($opts)) $opts = explode(",", $opts);
 			if (in_array("none", $opts)) $opts = array();
 			if (in_array("all", $opts)) $opts = array("flush", "consume");
 			$actions = implode(",", $opts);
 
+			$maxMessagesPerProc = isset($sendConf["onShutdownMessageLimit"]) ? $sendConf["onShutdownMessageLimit"] : 0;
+			$limitClause = $maxMessagesPerProc == 0 ? "" : "limit=$maxMessagesPerProc";
+
+			$retriggerClause = isset($sendConf["retrigger"]) ? "retrigger=" . $sendConf["retrigger"] : "";
+
 			switch (self::$onshutdown_option) {
 				case "sake":
 					$exec = Director::getAbsFile("sapphire/sake");
-					`$exec MessageQueue_Process queue=$queue actions=$actions $stdout $stderr &`;
+					`$exec MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &`;
 					break;
 				case "phppath":
 					$php = self::$onshutdown_arg;
 					$sapphire = Director::getAbsFile("sapphire");
-					$cmd = "$php $sapphire/cli-script.php MessageQueue_Process queue=$queue actions=$actions $stdout $stderr &";
+					$cmd = "$php $sapphire/cli-script.php MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &";
 					`$cmd`;
 					if (self::$debugging_path) {
 						`echo "queue is $queue\n" $stdout`;
@@ -256,6 +261,54 @@ class MessageQueue {
 				default:
 					throw new Exception("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_on_shutdown);
 			}
+		}
+	}
+
+	/**
+	 * For a given queue, create a subprocess to send/consume messages on the queue as per the configuration
+	 * for the queue. This can be used in consume_on_shutdown, and can also be used by the message processor to
+	 * retrigger more messages.
+	 * 
+	 * @todo This is copied directly from the code in consume_on_shutdown, which should be refactored to use this
+	 *       method once it's behaviour is verified.
+	 * @static
+	 * @throws Exception
+	 * @param  $queue
+	 * @return void
+	 */
+	static function consume_in_subprocess($queue) {
+		$config = MessageQueue::get_queue_config($queue);
+		if (!isset($config["send"]) || !is_array($config["send"])) throw new Exception("MessageQueue: unexpectedly invalid/absent send config on onShutdown");
+		$sendConf = $config["send"] ? $config["send"] : array();
+		$opts = isset($sendConf["onShutdown"]) ? $sendConf["onShutdown"] : "";
+
+		if (is_string($opts)) $opts = explode(",", $opts);
+		if (in_array("none", $opts)) $opts = array();
+		if (in_array("all", $opts)) $opts = array("flush", "consume");
+		$actions = implode(",", $opts);
+
+		$maxMessagesPerProc = isset($sendConf["onShutdownMessageLimit"]) ? $sendConf["onShutdownMessageLimit"] : 0;
+		$limitClause = $maxMessagesPerProc == 0 ? "" : "limit=$maxMessagesPerProc";
+
+		$retriggerClause = isset($sendConf["retrigger"]) ? "retrigger=" . $sendConf["retrigger"] : "";
+
+		switch (self::$onshutdown_option) {
+			case "sake":
+				$exec = Director::getAbsFile("sapphire/sake");
+				`$exec MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &`;
+				break;
+			case "phppath":
+				$php = self::$onshutdown_arg;
+				$sapphire = Director::getAbsFile("sapphire");
+				$cmd = "$php $sapphire/cli-script.php MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &";
+				`$cmd`;
+				if (self::$debugging_path) {
+					`echo "queue is $queue\n" $stdout`;
+					`echo "command was $cmd\n" $stdout`;
+				}
+				break;
+			default:
+				throw new Exception("MessageQueue::consume_on_shutdown: invalid option " . self::$queues_to_flush_on_shutdown);
 		}
 	}
 
@@ -596,6 +649,8 @@ class MessageQueue_Process extends Controller {
 		else if ($req && isset($req["action"])) $actions = $req["action"];
 		else $actions = "all";
 
+		$retrigger = ($req && isset($req["retrigger"])) ? $req["retrigger"] : "";
+
 		$actions = explode(",", $actions);
 		$flush = false;
 		$consume = false;
@@ -610,6 +665,15 @@ class MessageQueue_Process extends Controller {
 			$count = MessageQueue::consume($queue, $limit ? array("limit" => $limit) : null);
 			if (!$count) return $this->httpError(404, 'No messages');
 		}
+
+		if ($retrigger == "yes" ) {
+			// @todo This assumes the queue is simpleDBMQ. Not performant on long queue.
+			// @todo Generalise counting.
+			$count = DB::query("select count(*) from \"SimpleDBMQ\" where \"QueueName\"='{$queue}'")->value;
+			if ($count > 0)
+				MessageQueue::consume_in_subprocess($queue);
+		}
+
 		return 'True';
 	}
 }
