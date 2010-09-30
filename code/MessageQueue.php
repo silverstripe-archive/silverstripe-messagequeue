@@ -277,6 +277,15 @@ class MessageQueue {
 	 * @return void
 	 */
 	static function consume_in_subprocess($queue) {
+		if (self::$debugging_path) {
+			$stdout = ">> " . self::$debugging_path . "/msgq.stdout";
+			$stderr = "2>>" . self::$debugging_path . "/msgq.stderr";
+		}
+		else {
+			$stdout = "> /dev/null";
+			$stderr = "2> /dev/null";
+		}
+
 		$config = MessageQueue::get_queue_config($queue);
 		if (!isset($config["send"]) || !is_array($config["send"])) throw new Exception("MessageQueue: unexpectedly invalid/absent send config on onShutdown");
 		$sendConf = $config["send"] ? $config["send"] : array();
