@@ -38,6 +38,24 @@ class MessageQueue {
 	protected static $queues_to_flush_on_shutdown = null;
 
 	/**
+	 * Clears all interfaces with it's configuration and sets the interfaces
+	 * to an empty array.
+	 */
+	static function clear_all_interfaces() {
+		self::$interfaces = array();
+	}
+	
+	/**
+	 * Sets all interfaces with it's configuration. Existing interfaces will
+	 * be overwritten.
+	 * @param Map $config	Associated array storing configuration for all interface.
+	 */
+	static function set_all_interfaces($config) {
+		self::$interfaces = $config;
+	}
+	
+
+	/**
 	 * Add an interface with it's configuration. If there is already a
 	 * configuration of that name, it will be replaced.
 	 * @param String $name			Name of the interface.
