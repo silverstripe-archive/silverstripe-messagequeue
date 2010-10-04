@@ -419,6 +419,69 @@ of the callback is
 It is passed the incoming message frame (decoded) and the configuration of
 the interface from which it was received.
 
+Custom Shutdown Handling
+------------------------
+
+If you want to process messages on shutdown, but your application requires a shutdown
+function which queues messages, there is in an issue because the shutdown functions
+are executed by PHP in the order in which they are executed. A way to to handle this
+is as follows. In the interface configuration, use the registerShutdown property.
+
+`
+	...
+	"send" => array(
+		"onShutdown" => "all",
+		"registerShutdown" => false,
+	)
+	...
+`
+
+Then in your custom shutdown function do the following:
+
+`
+	...
+	MessageQueue::send("myqueue", new MethodInvocationMessage("MyClass", "my_method"));
+	...
+
+    // force MessageQueue to spawn the process that handles the messages as it
+    // normally would on shutdown.
+    MessageQueue::consume_on_shutdown();
+`
+
+
+Retriggering Queue Processing
+-----------------------------
+
+When messages are sent on shutdown, the default behaviour is to initiate a process
+that sends all messages in the queue. Sometimes you might want to limit the number
+of messages sent in a single process, but do want to send all the messages. For example,
+if you have to perform a memory-intensive operation on a large number of objects, attempting
+to send all the messages in a single process may cause PHP to run out of memory. Message queue provides
+options `retrigger` and `onShutdownMessageLimit` that can be used to work around this.
+`onShutdownMessageLimit` sets a limit on the number of items in the queue that are sent
+by a single PHP process executed asynchronously. `retrigger` causes the asynchronous process
+to initiate a further process if there are still unsent messages in the queue its processing.
+
+To configure this behaviour, do the following:
+`
+	...
+	"send" => array(
+		"onShutdown" => "all",
+		"retrigger" => "yes",                   // on consume, retrigger if there are more items
+		"onShutdownMessageLimit" => "1"         // one message per async process
+	)
+`
+
+Notes:
+
+- in the general case, the initial shutdown will result in a "chain" of sychronous
+  PHP processes that will in time clear all messages from the queue.
+- this does not guarantee that there is only one consumer of the queue. If two separate
+  HTTP requests both send messages to the queue, it is possible that two processes are both
+  sending the messages (however, a given message will only be executed by one of them.) Care
+  must be taken if the processes can adversely interact.
+
+
 Queue Syntaxes
 --------------
 
@@ -584,3 +647,5 @@ To Do
 * SimpleInterSSMQ to implement pull behaviour, not just push.
 * Example in docs of using SimpleInterSSMQ to capture onPublish and
   have the changes re-published on a remote site.
+* Provide for a single consumer of a queue, so that it can be guaranteed
+  that no two messages are being sent simultaneously by different processes.
