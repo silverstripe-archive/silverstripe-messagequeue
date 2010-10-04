@@ -88,13 +88,35 @@ class MessageQueueTest extends SapphireTest {
 	function testMessageSendDefaultConfig() {
 		$old = MessageQueue::get_force_immediate_delivery();
 		MessageQueue::set_force_immediate_delivery(false);
-
+		
+		// set test-environment for message queue, store the current
+		// testqueue message-queue to reset it after the test is done.
+		$interfaces = MessageQueue::get_interfaces();
+		MessageQueue::clear_all_interfaces();
+		MessageQueue::add_interface("testqueue", array(
+			"queues" => "testqueue",
+			"implementation" => "SimpleDBMQ",
+			"encoding" => "php_serialize",
+			"send" => array(
+				"onShutdown" => "none"
+			),
+			"delivery" => array(
+				"onerror" => array(
+					"log",
+					"requeue"
+				)
+			)
+		));
+		
 		$this->assertTrue($this->getQueueSizeSimpleDB("testqueue") == 0, "Queue is empty before we put anything in it");
 
 		MessageQueue::send("testqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethod", "p1", 2));
 
 		// Check the message is queue in the database.
 		$this->assertTrue($this->getQueueSizeSimpleDB("testqueue") == 1, "Queue has an item after we add to it");
+
+		// reset testqueue to the original state
+		MessageQueue::set_all_interfaces($interfaces);
 	
 		MessageQueue::set_force_immediate_delivery($old);
 	}
