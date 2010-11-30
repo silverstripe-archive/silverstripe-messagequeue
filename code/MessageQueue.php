@@ -203,8 +203,9 @@ class MessageQueue {
 			// If we are asked to process this queue on shutdown, ensure the php shutdown function
 			// is registered, and that this queue has been added to the list of queues to process.
 			// We sort out what actions are needed later.
+			$isRunningTest = (class_exists('SapphireTest', false) && SapphireTest::is_running_test());
 			if (isset($sendOptions["onShutdown"]) &&
-				(!SapphireTest::is_running_test() || self::$force_onshutdown_when_testing)) {
+				(!$isRunningTest || self::$force_onshutdown_when_testing)) {
 				if (!self::$queues_to_flush_on_shutdown) {
 					// only register the shutdown function once, and only if asked for or defaulted
 					if (!isset($sendOptions["registerShutdown"]) || $sendOptions["registerShutdown"])
