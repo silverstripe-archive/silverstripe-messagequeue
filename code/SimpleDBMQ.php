@@ -28,7 +28,7 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 	 * @return <type>
 	 */
 	function receive($queue, $interfaceConfig, $options) {
-		$result = new DataObjectSet();
+		$result = new ArrayList();
 		$limit = ($options && isset($options["limit"])) ? $options["limit"] : null;
 
 		$conn = DB::getConn();

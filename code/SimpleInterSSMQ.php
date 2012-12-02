@@ -82,7 +82,7 @@ class SimpleInterSSMQ implements MessageQueueImplementation {
 	 * @return <type>
 	 */
 	function receive($queue, $interfaceConfig, $options) {
-		return new DataObjectSet();
+		return new ArrayList();
 /*		$result = new DataObjectSet();
 		$limit = ($options && isset($options["limit"])) ? $options["limit"] : null;
 
