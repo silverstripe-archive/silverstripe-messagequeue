@@ -239,7 +239,7 @@ class MessageQueue {
 		// simpledbmq, but the interface can't provide a guaranteed method to
 		// get the messages without consuming them.
 		if (self::$debugging_path) {
-			$msgs = DataObject::get("SimpleDBMQ");
+			$msgs = SimpleDBMQ::get();
 			if ($msgs) {
 				`echo "messages currently in queue:\n" $stdout`;
 				foreach ($msgs as $msg) `echo " queue={$msg->QueueName} msg={$msg->Message}\n" $stdout`;

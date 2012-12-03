@@ -70,12 +70,12 @@ class MessageQueueTest extends SapphireTest {
 		$conf = array();
 		$inv->execute($frame, $conf);
 
-		$obj2 = DataObject::get_by_id("MessageQueueTest_DataObject", $id);
+		$obj2 = MessageQueueTest_DataObject::get()->byID($id);
 		$this->assertTrue($obj2->result == "p12_suffix", "DO method invocation correctly set its static output");
 	}
 
 	private function getQueueSizeSimpleDB($queue) {
-		$ds = DataObject::get("SimpleDBMQ", '"QueueName"=\'' . $queue . '\'');
+		$ds = SimpleDBMQ::get()->filter(array("QueueName"=>$queue));
 		if (!$ds) return 0;
 		return ($ds->Count());
 	}

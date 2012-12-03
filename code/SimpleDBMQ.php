@@ -38,7 +38,10 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 		else if (method_exists($conn, 'startTransaction')) $conn->startTransaction();
 
 		try {
-			$msgs = DataObject::get("SimpleDBMQ", $queue ? ('"QueueName"=\'' . $queue . '\'') : "", null, null, $limit ? array("limit" => $limit, "start" => 0) : null);
+			$msgs = SimpleDBMQ::get();
+			if ($queue) $msgs = $msgs->filter(array("QueueName"=>$queue));
+			if ($limit) $msgs = $msgs->limit($limit,0);
+
 			if (!$msgs) return $result;
 
 			foreach ($msgs as $do) {
