@@ -134,7 +134,7 @@ class MessageQueue {
 	 * This sets the mode in which onShutdown is handled, and may need
 	 * to be called if the shutdown processing doesn't work.
 	 * There are 2 options:
-	 *  - "sake" (default)	Sub-processes are run using exec, with sapphire/sake
+	 *  - "sake" (default)	Sub-processes are run using exec, with framework/sake
 	 *						being called to run the process. This requires
 	 *						that php is on the path, and is the same php
 	 *						interpreter as apache is using. (e.g. on MacOS X
@@ -264,13 +264,13 @@ class MessageQueue {
 
 			switch (self::$onshutdown_option) {
 				case "sake":
-					$exec = Director::getAbsFile("sapphire/sake");
+					$exec = Director::getAbsFile("framework/sake");
 					`$exec MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &`;
 					break;
 				case "phppath":
 					$php = self::$onshutdown_arg;
-					$sapphire = Director::getAbsFile("sapphire");
-					$cmd = "$php $sapphire/cli-script.php MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &";
+					$framework = Director::getAbsFile("framework");
+					$cmd = "$php $framework/cli-script.php MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &";
 					`$cmd`;
 					if (self::$debugging_path) {
 						`echo "queue is $queue\n" $stdout`;
@@ -322,13 +322,13 @@ class MessageQueue {
 
 		switch (self::$onshutdown_option) {
 			case "sake":
-				$exec = Director::getAbsFile("sapphire/sake");
+				$exec = Director::getAbsFile("framework/sake");
 				`$exec MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &`;
 				break;
 			case "phppath":
 				$php = self::$onshutdown_arg;
-				$sapphire = Director::getAbsFile("sapphire");
-				$cmd = "$php $sapphire/cli-script.php MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &";
+				$framework = Director::getAbsFile("framework");
+				$cmd = "$php $framework/cli-script.php MessageQueue_Process queue=$queue actions=$actions $limitClause $retriggerClause $stdout $stderr &";
 				`$cmd`;
 				if (self::$debugging_path) {
 					`echo "queue is $queue\n" $stdout`;
