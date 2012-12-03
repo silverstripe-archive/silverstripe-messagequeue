@@ -276,7 +276,7 @@ class MessageQueueTest extends SapphireTest {
 		MessageQueue::send("testmainqueue", new MethodInvocationMessage("MessageQueueTest", "doStaticMethod", "p1", 2));
 		$this->assertTrue($this->getQueueSizeSimpleDB("testmainqueue") == 1, "Main queue has an item after we add to it");
 
-		$this->message_frame = null;
+		self::$message_frame = null;
 
 		// clear the queue, causing the callback to be executed, which will leave the message in self::$message_frame
 		MessageQueue::consume("testmainqueue");
