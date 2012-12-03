@@ -1,0 +1,17 @@
+{
+    "name": "silverstripe/messagequeue",
+    "description": "A message queue implementation for SilverStripe",
+    "type": "silverstripe-module",
+    "keywords": ["silverstripe", "mq", "messagequeue", "message queue"],
+	"license": "BSD-3-Clause",
+    "authors": [
+    {
+        "name": "Mark Stephens",
+        "email": "mark@silverstripe.com"
+    }
+    ],
+    "require":
+    {
+        "silverstripe/framework": "3.*"
+    }
+}
