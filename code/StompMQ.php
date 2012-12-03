@@ -63,7 +63,7 @@ class StompMQ implements MessageQueueImplementation {
 
 		self::$conn->subscribe("/queue/" . $queue);
 
-		$result = new DataObjectSet();
+		$result = new ArrayList();
 		$count = 0;
 		$limit = ($options && isset($options["limit"])) ? $options["limit"] : 0;
 		while ((!$limit || $count < $limit) && ($frame = self::$conn->readFrame())) {
