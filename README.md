@@ -1,5 +1,6 @@
-Introduction
-============
+# Message Queue Module
+
+## Introduction
 
 The MessageQueue module provides a simple, lightweight message queueing mechanism
 for SilverStripe applications. It supports the following features:
@@ -7,15 +8,20 @@ for SilverStripe applications. It supports the following features:
 * message sending between SilverStripe installations
 * bi-directional interaction with external messaging systems ssuch as ApacheMQ.
 
-Installation
-------------
+## Requirements
+
+- Stomp.php if Stomp is being used (Note: experimental only)
+- processOnShutdown option requires *nix or OS X (won't work on Windows)
+
+## Installation
 
 Extract messagequeue into the base folder of your SilverStripe application. Default
-configuration applies, documented below.
+configuration applies, documented below. Ensure its called "messagequeue".
+In mysite/_config.php, put any code for setting the interface configuration
+of the module.
 
 
-Key Characteristics
--------------------
+## Key Characteristics
 
 The behaviour of the module is mostly determined by it's configuration, set by
 the application. The configuration is set via the methods
@@ -41,16 +47,14 @@ There are two primary operations:
   application.
 
 
-Message Format
---------------
+## Message Format
 
 A message is encapsulated in a MessageFrame object, which contains:
 
 * headers - a map of name => value pairs.
 * body - the message body.
 
-Send Behaviour
---------------
+## Send Behaviour
 
 Messages are sent using MessageQueue::send(). This nominates a queue and the
 message body. First, the interface to send through is determined from the queue
@@ -67,8 +71,7 @@ messages to itself.
 
 Once the message is encoded, it is sent via the specified implementation class.
 
-Receive Behaviour
------------------
+## Receive Behaviour
 
 There are two distinct phases to receiving messages:
 
@@ -110,8 +113,7 @@ Notes:
   guaranteeing that each message delivery attempt is done once. A message is
   only successfully delivered once.
 
-Output Buffering
-----------------
+## Output Buffering
 
 When sending messages to a remote system, it is often beneficial to buffer the
 outgoing messages and send them outside of the PHP request that is sending
@@ -160,8 +162,7 @@ the buffer queue, and at that point sends them via real configured interface
 (in this case, SimpleInterSSMQ).
 
 
-Exception Handling
-------------------
+## Exception Handling
 
 If an exception occurs during delivery (i.e. during the execution of an object's
 execute() method or the callback), the 'onerror' section of the interfaces
@@ -173,8 +174,7 @@ which can include:
 * re-queue the message, on the same queue (for retry), or onto another queue
   (e.g. might have a queue for errors)
 
-Auto-executing Messages
------------------------
+## Auto-executing Messages
 
 As a convenience, a class MethodInvocationMessage is provided which encapsulates
 a method call in one of the following forms:
@@ -194,11 +194,9 @@ be called this way. This is particularly useful for easy creation of actions or
 commands to execute in a long running process. These messages are considered
 "self-delivering", although are subject to exception processing.
 
-Configuration Options and Examples
-==================================
+## Configuration Options and Examples
 
-Default Configuration
----------------------
+### Default Configuration
 
 The default configuration is:
 `
@@ -235,8 +233,8 @@ NOTE: If you don't want the default behaviour in your site, you must call
 MessageQueue::remove_interface("default") before adding the interfaces you want
 to use.
 
-Multiple Queues
----------------
+### Multiple Queues
+
 `
 	MessageQueue::add_interface("myinterface", array(
 		"queues" => array("queue1", "queue2"),
@@ -269,8 +267,8 @@ will be logged and re-queued onto queue2. Messages sent to any other queue will
 be handled by the second interface, which is processed on PHP shutdown.
 
 
-SimpleInterSSMQ
----------------
+### SimpleInterSSMQ
+
 This interface provides a simple way to send messages from one SilverStripe installation to another without requiring
 any additional installed software. It works by the sender initiating an HTTP request to a controller at the destination
 whch accepts messages.
@@ -326,8 +324,7 @@ or even a self-invoking message:
 
 
 
-ApacheMQ
---------
+### ApacheMQ
 
 (This example is incomplete. We need to document how to pass authentication
 details thru, and how to use the durable clients feature of Stomp.)
@@ -366,8 +363,7 @@ The second interface provides the "background" queue, with internal queuing and
 processing on shutdown as before.
 
 
-Error Handling Options
-----------------------
+### Error Handling Options
 
 The following configuration snippet shows the currently available forms for
 processing delivery exceptions.
@@ -399,8 +395,7 @@ It is a list of commands of these forms, so more than one action can be taken.
   the exception object and the messageframe that failed to be delivered.
 * "drop" does nothing. If used alone, the exceptioned message will be dropped.
 
-Specifying a Callback for Delivery
-----------------------------------
+### Specifying a Callback for Delivery
 
 `
 	...
@@ -419,8 +414,7 @@ of the callback is
 It is passed the incoming message frame (decoded) and the configuration of
 the interface from which it was received.
 
-Custom Shutdown Handling
-------------------------
+### Custom Shutdown Handling
 
 If you want to process messages on shutdown, but your application requires a shutdown
 function which queues messages, there is in an issue because the shutdown functions
@@ -449,8 +443,7 @@ Then in your custom shutdown function do the following:
 `
 
 
-Retriggering Queue Processing
------------------------------
+### Retriggering Queue Processing
 
 When messages are sent on shutdown, the default behaviour is to initiate a process
 that sends all messages in the queue. Sometimes you might want to limit the number
@@ -482,8 +475,7 @@ Notes:
   must be taken if the processes can adversely interact.
 
 
-Queue Syntaxes
---------------
+### Queue Syntaxes
 
 The "queues" option in an interface configuration can be one of the following
 forms:
@@ -495,8 +487,7 @@ forms:
 				forward slash. In this example, any queue name ending with
 				AppQ, such as MyAppQ, will be matched against the interface.
 
-Specifying Requeuing for Delivery
----------------------------------
+### Specifying Requeuing for Delivery
 
 `
 	...
@@ -515,8 +506,7 @@ on that queue is attempted in-process. If immediate is false, no further
 immediate attempt is made to deliver the message from the other queue - it will
 be delivered according to the deliver execution rules of that queue.
 
-Initiating Message Queue Processing
-===================================
+## Initiating Message Queue Processing
 
 There are two distinct processes that can be initiated on a queue, as follows:
 
@@ -526,8 +516,8 @@ There are two distinct processes that can be initiated on a queue, as follows:
 
 Typically, one or both of these actions can be executed on a queue.
 
-On PHP Shutdown
----------------
+### On PHP Shutdown
+
 To initiate queue processing on the PHP shutdown of the process that initiated
 the send, you need to set the `onShutdown` option on the interface
 configuration. `onShutdown` can be a single option as a string, or an array of
@@ -557,8 +547,8 @@ sub-process.
 Note: this may vary between development, testing and production environments.
 
 
-Externally Using Sake
----------------------
+### Externally Using Sake
+
 Messages in a queue can be processed using the command:
 
 `
@@ -578,15 +568,13 @@ The `actions` query field can be a comma-separated list containing `flush`,
 
 You can schedule queue consumption using cron.
 
-Externally Using wget
----------------------
+### Externally Using wget
 
 In environments where there is no external php binary (e.g. only mod_php), you
 may need to use wget to initiate the call to the MessageQueue_Consume
 controller.
 
-To Do
-=====
+## To Do
 
 * Complete StompMQ and test it. Specific functions not supported at this stage
   includes authentication.
@@ -601,11 +589,9 @@ To Do
   be guaranteed across different implementers); or push it to the implementer
   layer to handle.
 
-Known Issues
-============
+## Known Issues
 
-Message Consumption on PHP Shutdown Issues on MacOS X w/MAMP
-------------------------------------------------------------
+### Message Consumption on PHP Shutdown Issues on MacOS X w/MAMP
 
 If the message queue appears to clearing on shutdown, but the messages are
 not being delivered (callback not being executed for example), enable
@@ -621,8 +607,7 @@ You need to ensure that /Applications/MAMP/Library/bin/envvars contains:
 	export DYLD_FALLBACK_LIBRARY_PATH=/Applications/MAMP/Library/lib
 `
 
-Diagnosing Message Queue Processing on PHP Shutdown
----------------------------------------------------
+### Diagnosing Message Queue Processing on PHP Shutdown
 
 By default when a process is initiated to clear a queue on PHP shutdown, the
 process redirects output to /dev/null. To assist in debugging these processes,
@@ -630,8 +615,7 @@ call MessageQueue::set_debugging can be called to set a directory to write log
 files to, and both stdout and stderr are redirected to real files in that
 directory.
 
-DataObject Sent Remotely
-------------------------
+### DataObject Sent Remotely
 
 Currently when a DataObject is sent as message body, it is serialised as a
 DataObject with a specified class and ID. When sent to a remote system there
@@ -641,7 +625,6 @@ serialisation, so that messages are serialised by value, not reference, for
 remote sends.
 
 To Do
-=====
 
 * Allow messages to be received from a buffered queue, particularly remotely.
 * SimpleInterSSMQ to implement pull behaviour, not just push.
