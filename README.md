@@ -122,18 +122,21 @@ outgoing messages and send them outside of the PHP request that is sending
 them. Output buffering is very easy to configure, and involves setting up
 another queue to act as the buffer. For example:
 
-`
+
+	```php
 	MessageQueue::add_interface("default", array(
 		"queues" => array("remote"),
 		"implementation" => "SimpleInterSSMQ",
-		"implementation_options" => array("remoteServer" => "http://myothersite.com/SimpleInterSSMQ_Accept"),
+		"implementation_options" => array(
+			"remoteServer" => "http://myothersite.com/SimpleInterSSMQ_Accept"
+		),
 		"encoding" => "php_serialize",
 		"send" => array(
-				"buffer" => "remote_buffer",
-				"onShutdown" => "flush"
+			"buffer" => "remote_buffer",
+			"onShutdown" => "flush"
 		),
 		"delivery" => array(
-				"onerror" => array("log")
+			"onerror" => array("log")
 		)
 	));
 
@@ -147,7 +150,7 @@ another queue to act as the buffer. For example:
 				 "onerror" => array("log")
 		)
 	));
-`
+	```
 
 The main points are:
 * The queue `remote` specifies a buffer in the send options. This is the name
@@ -201,7 +204,8 @@ commands to execute in a long running process. These messages are considered
 ### Default Configuration
 
 The default configuration is:
-`
+
+	```php
 	MessageQueue::add_interface("default", array(
 		"queues" => "/.*/",
 		"implementation" => "SimpleDBMQ",
@@ -211,22 +215,24 @@ The default configuration is:
 		),
 		"delivery" => array(
 			"onerror" => array(
-					"log"
+				"log"
 			)
-		)));
-`
+		)
+	));
+	```
 
 The effective behaviour is that messages sent to any queue will be processed on
 PHP shutdown. (Note: if this option is set, messages sent from another PHP
 shutdown function will not be consumed).
 
 Example 1:
-`
+
+	```php
 	MessageQueue::send(
 		"myqueue",
 		new MethodInvocationMessage("MyClass", "someStatic", "p1", 2)
 	);
-`
+	```
 
 This will cause the static method MyClass::someStatic("p1", 2) to be called in
 a sub-process that is initiated from PHP shutdown. Errors will be logged.
@@ -237,17 +243,19 @@ to use.
 
 ### Multiple Queues
 
-`
+	```php
 	MessageQueue::add_interface("myinterface", array(
 		"queues" => array("queue1", "queue2"),
 		"implementation" => "SimpleDBMQ",
 		"encoding" => "php_serialize",
 		"delivery" => array(
 			"onerror" => array(
-					"log",
-					"requeue" => "queue2"
+				"log",
+				"requeue" => "queue2"
 			)
-		)));
+		)
+	));
+	
 	MessageQueue::add_interface("default", array(
 		"queues" => "/.*/",
 		"implementation" => "SimpleDBMQ",
@@ -257,10 +265,10 @@ to use.
 		),
 		"delivery" => array(
 			"onerror" => array(
-					"log"
+				"log"
 			)
-		)));
-`
+	)));
+	```
 
 This configuration has two explicitly named queues, queue1 and queue2. They will
 not be processed on shutdown, so MessageQueue_Consume must be explicitly called
@@ -277,30 +285,35 @@ whch accepts messages.
 
 An example configuration on the send is:
 
-`
-MessageQueue::add_interface("default", array(
-        "queues" => array("mydest"),
-        "implementation" => "SimpleInterSSMQ",
-        "implementation_options" => array("remoteServer" => "http://mydestination.com/SimpleInterSSMQ_Accept"),
-        "encoding" => "php_serialize",
-        "send" => array(
-               "buffer" => "mydest_buffer",
-                "onShutdown" => "flush"
-        ),
-        "delivery" => array(
-                "onerror" => array(
-                        "log"
-                ),
-)));
-
-MessageQueue::add_interface("buffer", array(
-        "queues" => array("mydest_buffer"),
-        "implementation" => "SimpleDBMQ",
-        "delivery" => array(
-                   "onerror" => array("log")
-        )
-));
-`
+	```php
+	MessageQueue::add_interface("default", array(
+		"queues" => array("mydest"),
+			"implementation" => "SimpleInterSSMQ",
+			"implementation_options" => array(
+				"remoteServer" => "http://mydestination.com/SimpleInterSSMQ_Accept"
+			),
+			"encoding" => "php_serialize",
+			"send" => array(
+				"buffer" => "mydest_buffer",
+				"onShutdown" => "flush"
+			),
+		"delivery" => array(
+			"onerror" => array(
+				"log"
+			)
+		)
+	));
+	```
+	
+	```php
+	MessageQueue::add_interface("buffer", array(
+	        "queues" => array("mydest_buffer"),
+	        "implementation" => "SimpleDBMQ",
+	        "delivery" => array(
+			"onerror" => array("log")
+		)
+	));
+	```
 
 It sets up a queue called `mydest`. The `implementation_options` specify the remote accepting controller. This example
 also specifies a buffer queue called `mydest_buffer`. When messages are sent to `mydest`, they are buffered into
