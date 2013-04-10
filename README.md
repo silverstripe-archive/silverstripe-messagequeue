@@ -123,34 +123,34 @@ them. Output buffering is very easy to configure, and involves setting up
 another queue to act as the buffer. For example:
 
 
-	```php
-	MessageQueue::add_interface("default", array(
-		"queues" => array("remote"),
-		"implementation" => "SimpleInterSSMQ",
-		"implementation_options" => array(
-			"remoteServer" => "http://myothersite.com/SimpleInterSSMQ_Accept"
-		),
-		"encoding" => "php_serialize",
-		"send" => array(
-			"buffer" => "remote_buffer",
-			"onShutdown" => "flush"
-		),
-		"delivery" => array(
-			"onerror" => array("log")
-		)
-	));
+```php
+MessageQueue::add_interface("default", array(
+	"queues" => array("remote"),
+	"implementation" => "SimpleInterSSMQ",
+	"implementation_options" => array(
+		"remoteServer" => "http://myothersite.com/SimpleInterSSMQ_Accept"
+	),
+	"encoding" => "php_serialize",
+	"send" => array(
+		"buffer" => "remote_buffer",
+		"onShutdown" => "flush"
+	),
+	"delivery" => array(
+		"onerror" => array("log")
+	)
+));
 
-	MessageQueue::add_interface("buffer", array(
-		"queues" => array("remote_buffer"),
-		"implementation" => "SimpleDBMQ",
-		"send" => array(
-			"onShutdown" => "none"
-		),
-		"delivery" => array(
-				 "onerror" => array("log")
-		)
-	));
-	```
+MessageQueue::add_interface("buffer", array(
+	"queues" => array("remote_buffer"),
+	"implementation" => "SimpleDBMQ",
+	"send" => array(
+		"onShutdown" => "none"
+	),
+	"delivery" => array(
+			 "onerror" => array("log")
+	)
+));
+```
 
 The main points are:
 * The queue `remote` specifies a buffer in the send options. This is the name
@@ -205,21 +205,21 @@ commands to execute in a long running process. These messages are considered
 
 The default configuration is:
 
-	```php
-	MessageQueue::add_interface("default", array(
-		"queues" => "/.*/",
-		"implementation" => "SimpleDBMQ",
-		"encoding" => "php_serialize",
-		"send" => array(
-			"onShutdown" => "all"
-		),
-		"delivery" => array(
-			"onerror" => array(
-				"log"
-			)
+```php
+MessageQueue::add_interface("default", array(
+	"queues" => "/.*/",
+	"implementation" => "SimpleDBMQ",
+	"encoding" => "php_serialize",
+	"send" => array(
+		"onShutdown" => "all"
+	),
+	"delivery" => array(
+		"onerror" => array(
+			"log"
 		)
-	));
-	```
+	)
+));
+```
 
 The effective behaviour is that messages sent to any queue will be processed on
 PHP shutdown. (Note: if this option is set, messages sent from another PHP
@@ -227,12 +227,12 @@ shutdown function will not be consumed).
 
 Example 1:
 
-	```php
-	MessageQueue::send(
-		"myqueue",
-		new MethodInvocationMessage("MyClass", "someStatic", "p1", 2)
-	);
-	```
+```php
+MessageQueue::send(
+	"myqueue",
+	new MethodInvocationMessage("MyClass", "someStatic", "p1", 2)
+);
+```
 
 This will cause the static method MyClass::someStatic("p1", 2) to be called in
 a sub-process that is initiated from PHP shutdown. Errors will be logged.
@@ -243,32 +243,32 @@ to use.
 
 ### Multiple Queues
 
-	```php
-	MessageQueue::add_interface("myinterface", array(
-		"queues" => array("queue1", "queue2"),
-		"implementation" => "SimpleDBMQ",
-		"encoding" => "php_serialize",
-		"delivery" => array(
-			"onerror" => array(
-				"log",
-				"requeue" => "queue2"
-			)
+```php
+MessageQueue::add_interface("myinterface", array(
+	"queues" => array("queue1", "queue2"),
+	"implementation" => "SimpleDBMQ",
+	"encoding" => "php_serialize",
+	"delivery" => array(
+		"onerror" => array(
+			"log",
+			"requeue" => "queue2"
 		)
-	));
-	
-	MessageQueue::add_interface("default", array(
-		"queues" => "/.*/",
-		"implementation" => "SimpleDBMQ",
-		"encoding" => "php_serialize",
-		"send" => array(
-			"onShutdown" => "all"
-		),
-		"delivery" => array(
-			"onerror" => array(
-				"log"
-			)
-	)));
-	```
+	)
+));
+
+MessageQueue::add_interface("default", array(
+	"queues" => "/.*/",
+	"implementation" => "SimpleDBMQ",
+	"encoding" => "php_serialize",
+	"send" => array(
+		"onShutdown" => "all"
+	),
+	"delivery" => array(
+		"onerror" => array(
+			"log"
+		)
+)));
+```
 
 This configuration has two explicitly named queues, queue1 and queue2. They will
 not be processed on shutdown, so MessageQueue_Consume must be explicitly called
@@ -285,35 +285,35 @@ whch accepts messages.
 
 An example configuration on the send is:
 
-	```php
-	MessageQueue::add_interface("default", array(
-		"queues" => array("mydest"),
-			"implementation" => "SimpleInterSSMQ",
-			"implementation_options" => array(
-				"remoteServer" => "http://mydestination.com/SimpleInterSSMQ_Accept"
-			),
-			"encoding" => "php_serialize",
-			"send" => array(
-				"buffer" => "mydest_buffer",
-				"onShutdown" => "flush"
-			),
-		"delivery" => array(
-			"onerror" => array(
-				"log"
-			)
+```php
+MessageQueue::add_interface("default", array(
+	"queues" => array("mydest"),
+		"implementation" => "SimpleInterSSMQ",
+		"implementation_options" => array(
+			"remoteServer" => "http://mydestination.com/SimpleInterSSMQ_Accept"
+		),
+		"encoding" => "php_serialize",
+		"send" => array(
+			"buffer" => "mydest_buffer",
+			"onShutdown" => "flush"
+		),
+	"delivery" => array(
+		"onerror" => array(
+			"log"
 		)
-	));
-	```
-	
-	```php
-	MessageQueue::add_interface("buffer", array(
-	        "queues" => array("mydest_buffer"),
-	        "implementation" => "SimpleDBMQ",
-	        "delivery" => array(
-			"onerror" => array("log")
-		)
-	));
-	```
+	)
+));
+```
+
+```php
+MessageQueue::add_interface("buffer", array(
+        "queues" => array("mydest_buffer"),
+        "implementation" => "SimpleDBMQ",
+        "delivery" => array(
+		"onerror" => array("log")
+	)
+));
+```
 
 It sets up a queue called `mydest`. The `implementation_options` specify the remote accepting controller. This example
 also specifies a buffer queue called `mydest_buffer`. When messages are sent to `mydest`, they are buffered into
@@ -328,14 +328,14 @@ This is required because SimplerInterSSMQ_Accept controller is disabled by defau
 
 To send a message from the source, it is a simple message send:
 
-`
+```php
 	MessageQueue::send("mydest", $someObject);
-`
+```
 
 or even a self-invoking message:
-`
+```php
 	MessageQueue::send("mydest", new MethodInvocationMessage("SomeClass", "someMethod", $parameter));
-`
+```
 
 
 
@@ -344,17 +344,22 @@ or even a self-invoking message:
 (This example is incomplete. We need to document how to pass authentication
 details thru, and how to use the durable clients feature of Stomp.)
 
-`
+```php
 	MessageQueue::add_interface("myinterface", array(
-		"queues" => array("stompqueue1", "stompqueue2"),
+		"queues" => array(
+			"stompqueue1",
+			"stompqueue2"
+		),
 		"implementation" => "StompMQ",
 		"encoding" => "raw",
 		"delivery" => array(
 			"onerror" => array(
-					"log",
-					"requeue" => "queue2"
+				"log",
+				"requeue" => "queue2"
 			)
-		)));
+		)
+	));
+
 	MessageQueue::add_interface("default", array(
 		"queues" => "background",
 		"implementation" => "SimpleDBMQ",
@@ -366,8 +371,9 @@ details thru, and how to use the durable clients feature of Stomp.)
 			"onerror" => array(
 					"log"
 			)
-		)));
-`
+		)
+	));
+```
 
 In this example, two queues "stompqueue1" and "stompqueue2" are defined, and
 message processing is handled through the StompMQ class. These queue names are
@@ -383,7 +389,7 @@ processing on shutdown as before.
 The following configuration snippet shows the currently available forms for
 processing delivery exceptions.
 
-`
+```
 	...
 	"delivery" => array(
 		"log",
@@ -393,7 +399,7 @@ processing delivery exceptions.
 		"drop"
 	),
 	...
-`
+```
 
 It is a list of commands of these forms, so more than one action can be taken.
 
@@ -412,20 +418,20 @@ It is a list of commands of these forms, so more than one action can be taken.
 
 ### Specifying a Callback for Delivery
 
-`
+```
 	...
 	"delivery" => array(
 		"callback" => array("MyClass", "method")
 	),
 	...
-`
+```
 
 With this option, any message received that does not implement
 MethodExecutable will be passed to the specified callback function. The
-value is a method specifier for call_user_func_array, so can identify a static
+value is a method specifier for `call_user_func_array`, so can identify a static
 function by supplying the class name and a static method name. The signature
-of the callback is
-`	function callback($msgFrame, $config)`
+of the callback is `function callback($msgFrame, $config)`
+
 It is passed the incoming message frame (decoded) and the configuration of
 the interface from which it was received.
 
@@ -436,26 +442,26 @@ function which queues messages, there is in an issue because the shutdown functi
 are executed by PHP in the order in which they are executed. A way to to handle this
 is as follows. In the interface configuration, use the registerShutdown property.
 
-`
+```
 	...
 	"send" => array(
 		"onShutdown" => "all",
 		"registerShutdown" => false,
 	)
 	...
-`
+```
 
 Then in your custom shutdown function do the following:
 
-`
-	...
+```php
+	
 	MessageQueue::send("myqueue", new MethodInvocationMessage("MyClass", "my_method"));
-	...
+	
 
-    // force MessageQueue to spawn the process that handles the messages as it
-    // normally would on shutdown.
-    MessageQueue::consume_on_shutdown();
-`
+	// force MessageQueue to spawn the process that handles the messages as it
+	// normally would on shutdown.
+	MessageQueue::consume_on_shutdown();
+```
 
 
 ### Retriggering Queue Processing
@@ -471,14 +477,16 @@ by a single PHP process executed asynchronously. `retrigger` causes the asynchro
 to initiate a further process if there are still unsent messages in the queue its processing.
 
 To configure this behaviour, do the following:
-`
+
+```
 	...
 	"send" => array(
 		"onShutdown" => "all",
 		"retrigger" => "yes",                   // on consume, retrigger if there are more items
 		"onShutdownMessageLimit" => "1"         // one message per async process
 	)
-`
+	...
+```
 
 Notes:
 
@@ -504,7 +512,7 @@ forms:
 
 ### Specifying Requeuing for Delivery
 
-`
+```
 	...
 	"delivery" => array(
 		"requeue" => array(
@@ -513,7 +521,7 @@ forms:
 		)
 	),
 	...
-`
+```
 
 With this option, you can specify that when delivery is attempted, it is put
 into another queue. If the immediate option is set, the delivery of the message
@@ -554,7 +562,9 @@ that are not compiled the same - MacOS X built-in vs MAMP is a classic
 example), 'sake' make not work. If this is the case, you can call the
 following in mysite/_config.php:
 
-`MessageQueue::set_onshutdown_option("phppath", $pathToPhp);`
+```php
+	MessageQueue::set_onshutdown_option("phppath", $pathToPhp);
+```
 
 If this is set, the provided php binary is used instead of sake in the
 sub-process.
@@ -566,17 +576,19 @@ Note: this may vary between development, testing and production environments.
 
 Messages in a queue can be processed using the command:
 
-`
+```bash
 	sake MessageQueue_Process "queue=myqueue&actions=all"
-`
+```
+
 
 This will flush and then consume all messages on myqueue, and delivering them
 to the application.
 
 You can limit the number of entries processed:
-`
+
+```bash
 	sake MessageQueue_Process "queue=myqueue&limit=10&actions=consume"
-`
+```
 
 The `actions` query field can be a comma-separated list containing `flush`,
 `consume`, `all` or `none`.
@@ -612,15 +624,14 @@ If the message queue appears to clearing on shutdown, but the messages are
 not being delivered (callback not being executed for example), enable
 debugging. If you see this message:
 
-`
-	Symbol not found: __cg_jpeg_resync_to_restart
-`
+`Symbol not found: __cg_jpeg_resync_to_restart`
+
 You need to ensure that /Applications/MAMP/Library/bin/envvars contains:
 
-`
+```
 	DYLD_LIBRARY_PATH="/Applications/MAMP/Library/lib:$DYLD_LIBRARY_PATH"
 	export DYLD_FALLBACK_LIBRARY_PATH=/Applications/MAMP/Library/lib
-`
+```
 
 ### Diagnosing Message Queue Processing on PHP Shutdown
 
