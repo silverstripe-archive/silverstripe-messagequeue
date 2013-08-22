@@ -7,7 +7,7 @@
  */
 
 class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
-	static $db = array(
+	private static $db = array(
 		"QueueName" => "Varchar(255)",
 		"Header" => "Text",
 		"Message" => "Text"

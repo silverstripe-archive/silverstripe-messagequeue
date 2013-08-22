@@ -1,7 +1,7 @@
 <?php
 
 class MessageQueueTest extends SapphireTest {
-	static $fixture_file = 'messagequeue/tests/MessageQueueTest.yml';
+	protected static $fixture_file = 'messagequeue/tests/MessageQueueTest.yml';
 	protected $extraDataObjects = array(
 		'MessageQueueTest_DataObject'
 	);
@@ -424,7 +424,7 @@ class MessageQueueTest extends SapphireTest {
 }
 
 class MessageQueueTest_DataObject extends DataObject implements TestOnly {
-	static $db = array(
+	private static $db = array(
 		"prop1" => "Varchar",
 		"prop2" => "Int",
 		"result" => "Varchar"
