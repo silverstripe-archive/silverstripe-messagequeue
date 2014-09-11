@@ -27,15 +27,14 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 	 * @param <type> $options
 	 * @return <type>
 	 */
-	function receive($queue, $interfaceConfig, $options) {
+	public function receive($queue, $interfaceConfig, $options) {
 		$result = new ArrayList();
 		$limit = ($options && isset($options["limit"])) ? $options["limit"] : null;
 
 		$conn = DB::getConn();
 
-		// OK, start a transaction, or if we are in MySQL, create a lock on the SimpleDBMQ table.
-		if ($conn instanceof MySQLDatabase) $res = $conn->query('lock table SimpleDBMQ write');
-		else if (method_exists($conn, 'startTransaction')) $conn->startTransaction();
+		// Work within a transaction
+		if($conn->supportsTransactions()) $conn->transactionStart();
 
 		try {
 			$msgs = SimpleDBMQ::get();
@@ -50,20 +49,15 @@ class SimpleDBMQ extends DataObject implements MessageQueueImplementation {
 				$do->flushCache();
 			}
 
-			// Commit transaction, or in MySQL just release the lock
-			if ($conn instanceof MySQLDatabase) $res = $conn->query('unlock tables');
-			else if (method_exists($conn, 'endTransaction')) $conn->endTransaction();
+			// Commit transaction
+			if($conn->supportsTransactions()) $conn->transactionEnd();
 		}
 		catch (Exception $e) {
-			// Rollback, or in MySQL just release the lock
-			if ($conn instanceof MySQLDatabase) $res = $conn->query('unlock tables');
-			else if (method_exists($conn, 'transactionRollback')) $conn->transactionRollback();
-
+			// Rollback
+			if($conn->supportsTransactions()) $conn->transactionRollback();
 			throw $e;
 		}
 
 		return $result;
 	}
 }
-
-?>
