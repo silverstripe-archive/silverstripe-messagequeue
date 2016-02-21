@@ -1,0 +1,7 @@
+---
+Name: messagequeueroutes
+After: '#rootroutes'
+---
+Director:
+  rules:
+    'MessageQueue_Process': 'MessageQueue_Process'
